@@ -9,8 +9,13 @@
 library(readxl)
 # Cargar pacman (contiene la función p_load)
 library(pacman) 
-
-
+############# Encontrar variables Externas
+#install.packages("osmdata")
+#install.packages("leaflet")
+#install.packages("dplyr")
+#install.packages("rgeos")
+# install.packages("openxlsx")
+library(openxlsx)
 
 
 # Cargar las librerías listadas e instalarlas en caso de ser necesario
@@ -22,7 +27,8 @@ p_load(tidyverse, # Manipular dataframes
        tmaptools, # geocode_OSM()
        sf, # Leer/escribir/manipular datos espaciales
        osmdata, # Get OSM's data 
-       tidymodels) #para modelos de ML
+       tidymodels,
+       dplyr) #para modelos de ML
 
 ### Importar la Base de Datos           
 # Especifica la ubicación de la carpeta que contiene los archivos CSV
@@ -276,106 +282,175 @@ leaflet() %>%
 library(dplyr)
 
 # Definir los límites geográficos de Bogotá (sin Chapinero)
+
+# Definir los límites geográficos de Bogotá
 limites_bogota <- getbb("Bogotá, Colombia")
 
-# Definir los límites geográficos de Chapinero
-latitud_chapinero_min <- 4.6359
-latitud_chapinero_max <- 4.6559
-longitud_chapinero_min <- -74.0734
-longitud_chapinero_max <- -74.0534
-
-# Filtrar las observaciones que están dentro de Bogotá pero fuera de Chapinero
-train_filtrado <- train %>%
+# Filtrar observaciones dentro de los límites de Bogotá
+train_filtrado_bogota <- train %>%
   filter(
     between(lon, limites_bogota[1, "min"], limites_bogota[1, "max"]) &
-      between(lat, limites_bogota[2, "min"], limites_bogota[2, "max"]) &
-      (lat < latitud_chapinero_min | lat > latitud_chapinero_max | 
-         lon < longitud_chapinero_min | lon > longitud_chapinero_max)
+      between(lat, limites_bogota[2, "min"], limites_bogota[2, "max"])
   )
-
 # Escalamos para que se pueda graficar
 train <- train %>%
   mutate(precio_por_mt2_sc =( (precio_por_mt2 - min(precio_por_mt2)) / (max(precio_por_mt2) - min(precio_por_mt2))))
 
+# Luego creamos una variable de color que debende del tipo de immueble.
 
 
+# Crear una nueva columna "color" basada en el tipo de propiedad
+train <- train %>%
+  mutate(color = case_when(property_type == "Apartamento" ~ "#2A9D8F",
+                           property_type == "Casa" ~ "#F4A261"))
 
+# Encontrar el centro del mapa
+latitud_central <- mean(train$lat)
+longitud_central <- mean(train$lon)
 
+# Crear el mensaje en el popup con HTML
+html <- paste0("<b>Precio:</b> ",
+               scales::dollar(train$price),
+               "<br> <b>Area:</b> ",
+               as.integer(train$nueva_surface), " mt2",
+               "<br> <b>Tipo de inmueble:</b> ",
+               train$property_type,
+               "<br> <b>Numero de alcobas:</b> ",
+               as.integer(train$rooms),
+               "<br> <b>Numero de baños:</b> ",
+               as.integer(train$bathrooms),
+               "<br> <b>Sector:</b> ",
+               train$l4,
+               "<br> <b>Barrio:</b> ",
+               train$l5)
 
+# Crear el mapa con Leaflet
+leaflet() %>%
+  addTiles() %>%
+  setView(lng = longitud_central, lat = latitud_central, zoom = 12) %>%
+  addCircles(lng = train$lon, 
+             lat = train$lat, 
+             col = train$color,
+             fillOpacity = 1,
+             opacity = 1,
+             radius = train$precio_por_mt2_sc * 10,
+             popup = html)
 
-
-
-
-
-
-
-
-# Definir la ubicación de interés (Bogotá, Colombia)
+# Definir la ubicación de interés (en este caso, Bogotá, Colombia)
 ubicacion <- "Bogotá, Colombia"
 
 # Obtener los límites geográficos (BBOX) de la ubicación
 bbox_bogota <- getbb(ubicacion)
 
-# Buscar información de todos los parques en Bogotá
-parques <- opq(bbox = bbox_bogota) %>%
-  add_osm_feature(key = "leisure", value = "park")
+bbox_bogota
+
+# Definir la ubicación de interés (en este caso, Bogotá, Colombia)
+parques <- opq(bbox = getbb("Bogotá, Colombia")) %>%
+  add_osm_feature(key = "leisure" , value = "park") 
 
 # Cambiar el formato para que sea un objeto sf (simple features)
 parques_sf <- osmdata_sf(parques)
 
-# Verificar si hay resultados válidos
-if (!is.null(parques_sf$osm_polygons)) {
-  # De las características del parque, nos interesa su geometría y ubicación
-  parques_geometria <- parques_sf$osm_polygons %>%
-    select(osm_id, name)
-  
-  # Calcular el centroide de cada parque para aproximar su ubicación como un solo punto
-  centroides <- gCentroid(as(parques_geometria$geometry, "Spatial"), byid = TRUE)
-  
-  # Crear el mapa de Bogotá
-  mapa_bogota <- leaflet() %>%
-    addTiles() %>%
-    setView(lng = mean(bbox_bogota["lon"]), lat = mean(bbox_bogota["lat"]), zoom = 12) %>%
-    addPolygons(data = parques_geometria, col = "red", weight = 10,
-                opacity = 0.8, popup = parques_geometria$name) %>%
-    addCircles(lng = centroides$x,
-               lat = centroides$y,
-               col = "darkblue", opacity = 0.5, radius = 1)
-  
-  # Visualizar el mapa
-  print(mapa_bogota)
-} else {
-  # Si no hay resultados, mostrar un mensaje indicando que no se encontraron parques
-  print("No se encontraron parques en la ubicación especificada.")
-}
-
-##### Aparte 
-# Definir la ubicación de interés (Bogotá, Colombia)
-ubicacion <- "Bogotá, Colombia"
-
-# Obtener los límites geográficos (BBOX) de la ubicación
-bbox_bogota <- getbb(ubicacion)
-
-# Buscar información de todos los parques en Bogotá
-parques <- opq(bbox = bbox_bogota) %>%
-  add_osm_feature(key = "leisure", value = "park")
-
-# Cambiar el formato para que sea un objeto sf (simple features)
-parques_sf <- osmdata_sf(parques)
-
-# De las características del parque, nos interesa su geometría y ubicación
+# De las features del parque, nos interesa su geometría y ubicación
 parques_geometria <- parques_sf$osm_polygons %>%
   select(osm_id, name)
 
 # Calcular el centroide de cada parque para aproximar su ubicación como un solo punto
-centroides <- gCentroid(as(parques_geometria$geometry, "Spatial"), byid = TRUE)
+centroides <- st_centroid(parques_geometria)
 
-# Crear el mapa de Bogotá
+# Encontrar el centro del mapa
+latitud_central <- mean(bbox_bogota["lat"])
+longitud_central <- mean(bbox_bogota["lon"])
+
+# Crear el mapa de Bogotá con los parques
 leaflet() %>%
   addTiles() %>%
-  setView(lng = mean(bbox_bogota["lon"]), lat = mean(bbox_bogota["lat"]), zoom = 12) %>%
+  setView(lng = longitud_central, lat = latitud_central, zoom = 12) %>%
   addPolygons(data = parques_geometria, col = "red", weight = 10,
               opacity = 0.8, popup = parques_geometria$name) %>%
-  addCircles(lng = centroides$x,
-             lat = centroides$y,
+  addCircles(lng = st_coordinates(centroides)[, "X"], 
+             lat = st_coordinates(centroides)[, "Y"], 
              col = "darkblue", opacity = 0.5, radius = 1)
+
+###
+
+# Define los límites geográficos de Bogotá
+
+##############################################################
+# Definir los límites geográficos de Bogotá
+# Convertir los datos de train a un objeto sf y especificar el sistema de coordenadas
+train_sf <- st_as_sf(train, coords = c("lon", "lat"), crs = 4326)
+
+# Convertir los centroides de los parques a formato sf
+centroides_sf <- st_as_sf(centroides, coords = c("x", "y"), crs = 4326)
+
+# Calcular las distancias para cada combinación inmueble - parque
+distancias <- st_distance(train_sf, centroides_sf)
+
+# Encontrar la distancia mínima a un parque
+dist_min <- apply(distancias, 1, min)
+
+# Agregar la distancia mínima como una nueva columna en train_sf
+train_sf$distancia_parque <- dist_min
+
+# Visualizar el conjunto de datos train_sf
+head(train_sf)
+
+# Crear un mapa de leaflet
+m <- leaflet() %>%
+  addTiles() %>%
+  setView(lng = mean(train$lon), lat = mean(train$lat), zoom = 12) %>%
+  addCircles(lng = train$lon, lat = train$lat, radius = 100, color = "blue")
+
+# Mostrar el mapa
+m
+
+############Creando la variable de Universidades
+# Obtener los datos de universidades en Bogotá desde OpenStreetMap
+universidades_osm <- opq(bbox = getbb(ubicacion)) %>%
+  add_osm_feature(key = "amenity", value = "university") %>%
+  osmdata_sf()
+
+# Convertir los datos de universidades a un objeto sf
+universidades_sf <- universidades_osm$osm_points
+
+# Convertir train_sf al sistema de coordenadas EPSG:4326 si aún no lo está
+train_sf <- st_transform(train_sf, crs = 4326)
+
+# Calcular las distancias entre los inmuebles en train_sf y las universidades
+distancias <- st_distance(train_sf, universidades_sf)
+
+# Encontrar la distancia mínima a una universidad para cada inmueble
+dist_min <- apply(distancias, 1, min)
+
+# Agregar la distancia mínima como una nueva columna en train_sf
+train_sf$distancia_universidad <- dist_min
+
+# Visualizar el conjunto de datos con la nueva variable
+head(train_sf)
+
+
+### Centro comerciales
+
+# Obtener los datos de centros comerciales en Bogotá desde OpenStreetMap
+centros_comerciales_osm <- opq(bbox = getbb(ubicacion)) %>%
+  add_osm_feature(key = "shop", value = "mall") %>%
+  osmdata_sf()
+
+# Convertir los datos de centros comerciales a un objeto sf
+centros_comerciales_sf <- centros_comerciales_osm$osm_points
+
+# Convertir train_sf al sistema de coordenadas EPSG:4326 si aún no lo está
+train_sf <- st_transform(train_sf, crs = 4326)
+
+# Calcular las distancias entre los inmuebles en train_sf y los centros comerciales
+distancias <- st_distance(train_sf, centros_comerciales_sf)
+
+# Encontrar la distancia mínima a un centro comercial para cada inmueble
+dist_min <- apply(distancias, 1, min)
+
+# Agregar la distancia mínima como una nueva columna en train_sf
+train_sf$distancia_centro_comercial <- dist_min
+# Supongamos que centros_comerciales_sf es una lista
+# Convierte la lista en un data frame si tiene una estructura tabular adecuada
+write.xlsx(centros_comerciales_df, file = "C:/Users/Usuario/Documents/Machine Learning/Taller_2/stores/mi_base_de_datos.xlsx")
