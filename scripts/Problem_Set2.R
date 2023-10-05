@@ -5,16 +5,16 @@
 # Merit Tejeda: 202210104
 # Estefanía Laborde: 201533743
 
-#install.packages("readxl")
+install.packages("readxl")
 library(readxl)
-# Cargar pacman (contiene la función p_load)
+#Cargar pacman (contiene la función p_load)
 library(pacman) 
 ############# Encontrar variables Externas
-#install.packages("osmdata")
-#install.packages("leaflet")
-#install.packages("dplyr")
-#install.packages("rgeos")
-# install.packages("openxlsx")
+install.packages("osmdata")
+install.packages("leaflet")
+install.packages("dplyr")
+install.packages("rgeos")
+install.packages("openxlsx")
 library(openxlsx)
 
 
@@ -454,3 +454,8 @@ train_sf$distancia_centro_comercial <- dist_min
 # Supongamos que centros_comerciales_sf es una lista
 # Convierte la lista en un data frame si tiene una estructura tabular adecuada
 write.xlsx(centros_comerciales_df, file = "C:/Users/Usuario/Documents/Machine Learning/Taller_2/stores/mi_base_de_datos.xlsx")
+
+Tabla_Sexo <- as.data.frame(Tabla_Sexo)
+Tabla_S <- "C:/Output R/Taller_1/Taller_1/Tabla_S1.xlsx"
+write_xlsx(Tabla_Sexo, path = Tabla_S)
+
