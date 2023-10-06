@@ -437,6 +437,10 @@ centros_comerciales_osm <- opq(bbox = getbb(ubicacion)) %>%
   add_osm_feature(key = "shop", value = "mall") %>%
   osmdata_sf()
 
+install.packages("data.table")
+install.packages("sf")
+library(data.table)
+library(sf)
 # Convertir los datos de centros comerciales a un objeto sf
 centros_comerciales_sf <- centros_comerciales_osm$osm_points
 
@@ -451,11 +455,13 @@ dist_min <- apply(distancias, 1, min)
 
 # Agregar la distancia mínima como una nueva columna en train_sf
 train_sf$distancia_centro_comercial <- dist_min
-# Supongamos que centros_comerciales_sf es una lista
-# Convierte la lista en un data frame si tiene una estructura tabular adecuada
-write.xlsx(centros_comerciales_df, file = "C:/Users/Usuario/Documents/Machine Learning/Taller_2/stores/mi_base_de_datos.xlsx")
 
-Tabla_Sexo <- as.data.frame(Tabla_Sexo)
-Tabla_S <- "C:/Output R/Taller_1/Taller_1/Tabla_S1.xlsx"
-write_xlsx(Tabla_Sexo, path = Tabla_S)
+# Exclude the "geometry" column from the data frame
+data_centros <- data_centros[, !names(data_centros) %in% "geometry"]
+
+# Specify the file path
+Tabla_S <- "C:/Users/Usuario/Documents/Machine Learning/Taller_2/stores/Tabla_S1.xlsx"
+
+# Write the modified data frame to Excel
+write.xlsx(data_centros, file = Tabla_S)
 
