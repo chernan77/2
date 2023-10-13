@@ -6,20 +6,20 @@
 # Estefanía Laborde: 201533743
 
 library(dplyr)
-#install.packages("geosphere")
+install.packages("geosphere")
 library(geosphere)
 install.packages("stringr")
 library(stringr)
-#install.packages("readxl")
+install.packages("readxl")
 library(readxl)
 #Cargar pacman (contiene la función p_load)
 library(pacman) 
 ############# Encontrar variables Externas
-#install.packages("osmdata")
-#install.packages("leaflet")
-#install.packages("dplyr")
-#install.packages("rgeos")
-#install.packages("openxlsx")
+install.packages("osmdata")
+install.packages("leaflet")
+install.packages("dplyr")
+install.packages("rgeos")
+install.packages("openxlsx")
 library(openxlsx)
 
 
