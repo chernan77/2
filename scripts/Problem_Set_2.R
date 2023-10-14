@@ -308,8 +308,6 @@ train$tiene_bbq <- as.numeric(train$tiene_bbq)
 table(train$tiene_bbq)
 
 
-
-# Definir los límites geográficos de Bogotá (sin Chapinero)
 # Definir los límites geográficos de Bogotá
 limites_bogota <- getbb("Bogotá, Colombia")
 
@@ -466,7 +464,9 @@ train_sf$distancia_centros_comerciales <- dist_min_centros_comerciales
 
 # Visualizar el conjunto de datos train_sf con la nueva variable
 head(train_sf)
-######################################################PARTE 2##############################3333
+
+##-----------------------DISTANCIAS SUPERMERCADOS -----------------------------##
+
 # Definir la ubicación de interés (en este caso, Bogotá, Colombia)
 ubicacion <- "Bogotá, Colombia"
 
@@ -963,39 +963,39 @@ grid.arrange(gcm, gdm, ncol = 2)
 ##----------------- Variables Seleccionadas --------------------------------##
 ##--------------------------------------------------------------------------##
 
+# Renombrar las variables para una mayor comprensión de las variables que estamos trabajando
+train <- train %>% rename(Precio=price) 
+train <- train %>% rename(lPrecio=lprice) 
+train <- train %>% rename(Precio_M2=precio_por_mt2) 
+train <- train %>% rename(Habitaciones=bedrooms)
+train <- train %>% rename(Baños=bathrooms) 
+train <- train %>% rename(Area=nueva_surface)
+train <- train %>% rename(M2_por_Habitación=metros_cuadrados_por_bedrooms)
+train <- train %>% rename(Terraza=tiene_terraza) 
+train <- train %>% rename(Sala_BBQ=tiene_bbq) 
+train <- train %>% rename(Garaje=total_parqueo) 
+train <- train %>% rename(Dist_Parques=distancia_parque) 
+train <- train %>% rename(Dist_Transmilenio=distancia_transmilenio) 
+train <- train %>% rename(Dist_Supermercados=distancia_supermercados)
+train <- train %>% rename(Dist_C_Comerc=distancia_centros_comerciales) 
+train <- train %>% rename(Dist_Universidades=distancia_universidades)
+train <- train %>% rename(Dist_Restaurantes=distancia_restaurantes_bares) 
+train <- train %>% rename(Estrato=estrato) 
+
 ##-----------------------------CASAS----------------------------------------
 
-train_casas <- train[train$property_type == "Casa", c("property_id","title", "month", "year", "localidad","estrato", "price", "lprice", 
-                                                      "precio_por_mt2", "bedrooms", "bathrooms", "nueva_surface", "tiene_terraza", 
-                                                      "total_parqueo", "tiene_bbq", "lat", "lon",
-                                                      "distancia_parque", "distancia_transmilenio", "distancia_supermercados", 
-                                                      "distancia_centros_comerciales", "distancia_universidades", "distancia_restaurantes_bares")]
+train_casas <- train[train$property_type == "Casa", c("property_id","title", "month", "year", "localidad","Estrato", "Precio", "lPrecio", 
+                                                      "Precio_M2", "Habitaciones", "Baños", "Area","M2_por_Habitación", "Terraza", 
+                                                      "Garaje", "Sala_BBQ", "lat", "lon",
+                                                      "Dist_Parques", "Dist_Transmilenio", "Dist_Supermercados", 
+                                                      "Dist_C_Comerc", "Dist_Universidades", "Dist_Restaurantes")]
 
 
 # Imputar los Valores para los Baños
-data_b_b <- train_casas[complete.cases(train_casas[c("bedrooms", "bathrooms")]), ]
-media_b_b <- mean(data_b_b$bedrooms / data_b_b$bathrooms)
-train_casas$bathrooms[is.na(train_casas$bathrooms)] <- train_casas$bedrooms[is.na(train_casas$bathrooms)] / media_b_b
-train_casas$bathrooms <- round(train_casas$bathrooms) 
-
-
-# Renombrar las variables para una mayor comprensión de las variables que estamos trabajando
-train_casas <- train_casas %>% rename(Precio=price) 
-train_casas <- train_casas %>% rename(lPrecio=lprice) 
-train_casas <- train_casas %>% rename(Precio_M2=precio_por_mt2) 
-train_casas <- train_casas %>% rename(Habitaciones=bedrooms)
-train_casas <- train_casas %>% rename(Baños=bathrooms) 
-train_casas <- train_casas %>% rename(Area=nueva_surface) 
-train_casas <- train_casas %>% rename(Terraza=tiene_terraza) 
-train_casas <- train_casas %>% rename(Sala_BBQ=tiene_bbq) 
-train_casas <- train_casas %>% rename(Garaje=total_parqueo) 
-train_casas <- train_casas %>% rename(Dist_Parques=distancia_parque) 
-train_casas <- train_casas %>% rename(Dist_Transmilenio=distancia_transmilenio) 
-train_casas <- train_casas %>% rename(Dist_Supermercados=distancia_supermercados)
-train_casas <- train_casas %>% rename(Dist_C_Comerc=distancia_centros_comerciales) 
-train_casas <- train_casas %>% rename(Dist_Universidades=distancia_universidades)
-train_casas <- train_casas %>% rename(Dist_Restaurantes=distancia_restaurantes_bares) 
-train_casas <- train_casas %>% rename(Estrato=estrato) 
+data_b_b <- train_casas[complete.cases(train_casas[c("Habitaciones", "Baños")]), ]
+media_b_b <- mean(data_b_b$Habitaciones / data_b_b$Baños)
+train_casas$Baños[is.na(train_casas$Baños)] <- train_casas$Habitaciones[is.na(train_casas$Baños)] / media_b_b
+train_casas$Baños <- round(train_casas$Baños) 
 
 
 # Revisión de stadística descriptivas de variables para el Modelo
@@ -1004,6 +1004,7 @@ Tabla_Stat <- train_casas  %>% select(Precio,
                                       Habitaciones, 
                                       Baños,
                                       Area,
+                                      M2_por_Habitación,
                                       Dist_Parques,
                                       Dist_Transmilenio,
                                       Dist_Supermercados,
@@ -1014,39 +1015,20 @@ Tabla_Stat <- train_casas  %>% select(Precio,
 
 stargazer(data.frame(Tabla_Stat), header=FALSE, type='text',title="Estadisticas Variables Seleccionadas Casas")
 
-##----------------------------- Apartamentos ----------------------------------------##
+##---------------------------------------Apartamentos ----------------------------------------##
 
-train_apart <- train[train$property_type == "Apartamento", c("property_id","title", "month", "year", "localidad","estrato", "price", "lprice", 
-                                                             "precio_por_mt2", "bedrooms", "bathrooms", "nueva_surface", "tiene_terraza", 
-                                                             "total_parqueo", "tiene_bbq", "lat", "lon",
-                                                             "distancia_parque", "distancia_transmilenio", "distancia_supermercados", 
-                                                             "distancia_centros_comerciales", "distancia_universidades", "distancia_restaurantes_bares")]
+train_apart <- train[train$property_type == "Apartamento", c("property_id","title", "month", "year", "localidad","Estrato", "Precio", "lPrecio", 
+                                                             "Precio_M2", "Habitaciones", "Baños", "Area","M2_por_Habitación", "Terraza", 
+                                                             "Garaje", "Sala_BBQ", "lat", "lon",
+                                                             "Dist_Parques", "Dist_Transmilenio", "Dist_Supermercados", 
+                                                             "Dist_C_Comerc", "Dist_Universidades", "Dist_Restaurantes")]
 
 
 # Imputar los Valores para los Baños
-data1_b_b <- train_apart[complete.cases(train_apart[c("bedrooms", "bathrooms")]), ]
-media1_b_b <- mean(data_b_b$bedrooms / data_b_b$bathrooms)
-train_apart$bathrooms[is.na(train_apart$bathrooms)] <- train_apart$bedrooms[is.na(train_apart$bathrooms)] / media1_b_b
-train_apart$bathrooms <- round(train_apart$bathrooms) 
-
-
-# Renombrar las variables para una mayor comprensión de las variables que estamos trabajando
-train_apart <- train_apart %>% rename(Precio=price) 
-train_apart <- train_apart %>% rename(lPrecio=lprice) 
-train_apart <- train_apart %>% rename(Precio_M2=precio_por_mt2) 
-train_apart <- train_apart %>% rename(Habitaciones=bedrooms)
-train_apart <- train_apart %>% rename(Baños=bathrooms) 
-train_apart <- train_apart %>% rename(Area=nueva_surface) 
-train_apart <- train_apart %>% rename(Terraza=tiene_terraza) 
-train_apart <- train_apart %>% rename(Sala_BBQ=tiene_bbq) 
-train_apart <- train_apart %>% rename(Garaje=total_parqueo) 
-train_apart <- train_apart %>% rename(Dist_Parques=distancia_parque) 
-train_apart <- train_apart %>% rename(Dist_Transmilenio=distancia_transmilenio) 
-train_apart <- train_apart %>% rename(Dist_Supermercados=distancia_supermercados)
-train_apart <- train_apart %>% rename(Dist_C_Comerc=distancia_centros_comerciales) 
-train_apart <- train_apart %>% rename(Dist_Universidades=distancia_universidades)
-train_apart <- train_apart %>% rename(Dist_Restaurantes=distancia_restaurantes_bares) 
-train_apart <- train_apart %>% rename(Estrato=estrato) 
+data1_b_b <- train_apart[complete.cases(train_apart[c("Habitaciones", "Baños")]), ]
+media1_b_b <- mean(data_b_b$Habitaciones / data_b_b$Baños)
+train_apart$Baños[is.na(train_apart$Baños)] <- train_apart$Habitaciones[is.na(train_apart$Baños)] / media1_b_b
+train_apart$Baños <- round(train_apart$Baños) 
 
 
 # Revisión de stadística descriptivas de variables para el Modelo
@@ -1055,6 +1037,7 @@ Tabla_Stat_D <- train_apart  %>% select(Precio,
                                         Habitaciones, 
                                         Baños,
                                         Area,
+                                        M2_por_Habitación,
                                         Dist_Parques,
                                         Dist_Transmilenio,
                                         Dist_Supermercados,
@@ -1064,3 +1047,527 @@ Tabla_Stat_D <- train_apart  %>% select(Precio,
                                         Estrato)
 
 stargazer(data.frame(Tabla_Stat_D), header=FALSE, type='text',title="Estadisticas Variables Seleccionadas Apartamentos")
+
+Tabla_train <- "C:/Output R/Taller 2/Taller_2/Tabla_1.xlsx"  
+write_xlsx(train, Tabla_train)
+##############################################################################################################
+#--------------------------------------------- CHAPINERO-----------------------------------------------------#
+###################################################TEST########################################################
+
+test %>%
+  summarise_all(~sum(is.na(.))) %>% transpose()
+
+test$surface_total[is.na(test$surface_total)] <- test$surface_covered[is.na(test$surface_total)]
+test %>%
+  summarise_all(~sum(is.na(.))) %>% transpose()
+
+#Encontremos la moda de número de habitaciones 3, cuartos y número de baños
+test$bedrooms <- ifelse(test$bedrooms == 0, test$rooms, test$bedrooms)                                                    
+
+### Analisis descriptivo de rooms 3
+test %>%
+  count(rooms) %>% head() 
+test%>%
+  count(bedrooms)
+
+### Analisis descriptivo de rooms bathrooms 2
+
+test %>%
+  count(bathrooms)
+library(dplyr)
+
+##### Imputar la moda para bedrooms y bathrooms
+test <- test %>%
+  mutate(rooms = replace_na(rooms, 3),
+         bedrooms = replace_na(bedrooms, 3),
+         bathrooms = replace_na(bathrooms, 2),)
+# Añadir las mismas transformaciones que aplicaste a "train" para la variable "description"
+test <- test %>%
+  mutate(description = str_to_lower(description),
+         description = iconv(description, from = "UTF-8", to = "ASCII//TRANSLIT"),
+         description = str_replace_all(description, "[^[:alnum:]]", " "),
+         description = str_trim(gsub("\\s+", " ", description)))
+
+# Añadir la misma lógica que usaste para extraer los metros cuadrados de la descripción
+test$metros_cuadrados <- NA
+
+for (i in 1:nrow(test)) {
+  descripcion <- test$description[i]
+  
+  coincidencias <- gregexpr("\\d+(\\.\\d+)?\\s*(mts|mts²|m²|m2|metros cuadrados|metro cuadrado)", descripcion)
+  todas_coincidencias <- regmatches(descripcion, coincidencias)[[1]]
+  
+  metros_cuadrados <- NA
+  distancia_minima <- Inf
+  
+  for (coincidencia in todas_coincidencias) {
+    distancia_a_metros <- min(gregexpr("metros", coincidencia)[[1]])
+    
+    if (distancia_a_metros < distancia_minima) {
+      distancia_minima <- distancia_a_metros
+      metros_cuadrados <- coincidencia
+    }
+  }
+  
+  if (!is.na(metros_cuadrados)) {
+    valor_metros <- regmatches(metros_cuadrados, gregexpr("\\d+(\\.\\d+)?", metros_cuadrados))[[1]]
+    test$metros_cuadrados[i] <- as.numeric(valor_metros)
+  }
+}
+
+# Reemplazar los valores 0 con NA en la columna "metros_cuadrados"
+test <- test %>%
+  mutate(metros_cuadrados = ifelse(metros_cuadrados == 0, NA, metros_cuadrados))
+######### remplazar metros cuadrados solo cuando surface sea na
+# Crear una nueva variable "nueva_surface" que reemplace "surface" con "metros_cuadrados" cuando "surface" sea NA
+test <- test %>%
+  mutate(nueva_surface = ifelse(is.na(surface_total), metros_cuadrados, surface_total))
+test %>%
+  summarise_all(~sum(is.na(.))) %>% transpose()
+# Obtener un resumen estadístico de la variable "nueva_surface"
+resumen_nueva_surface <- summary(test$nueva_surface)
+
+# Imprimir el resumen
+print(resumen_nueva_surface)
+
+frecuencias <- table(test$nueva_surface)
+moda <- as.numeric(names(frecuencias)[which.max(frecuencias)])
+
+### Analisis para nueva surface
+test$rooms <- as.numeric(test$rooms)
+test$bedrooms <- as.numeric(test$bedrooms)
+test$bathrooms <- as.numeric(test$bathrooms)
+test$surface_total <- as.numeric(test$surface_total)
+test$surface_covered <- as.numeric(test$surface_covered)
+
+test$bedrooms <- ifelse(test$bedrooms == 0, test$rooms, test$bedrooms)
+mediana_bedrooms <- median(test$bedrooms, na.rm = TRUE)
+test$bedrooms <- ifelse(is.na(test$bedrooms), mediana_bedrooms, test$bedrooms)
+
+test <- test %>%
+  mutate(metros_cuadrados_por_bedrooms = metros_cuadrados / bedrooms)
+summary(test$metros_cuadrados_por_bedrooms)
+
+
+# --Segun los datos finales de Train la media de m^2 por habitación es 45.81
+
+test$metros_cuadrados <- ifelse(test$property_type == "Casa" & is.na(test$metros_cuadrados), 34.74 * test$bedrooms, test$metros_cuadrados)
+test$metros_cuadrados <- ifelse(test$property_type == "Apartamento" & is.na(test$metros_cuadrados), 49.38 * test$bedrooms, test$metros_cuadrados)
+
+test <- test %>%
+  mutate(metros_cuadrados_por_bedrooms = metros_cuadrados / bedrooms)
+summary(test$metros_cuadrados_por_bedrooms)
+
+##-------------------------------------Casas---------------------------------##
+promedio_metros_casas <- test %>%
+  filter(property_type == "Casa", bedrooms > 0) %>%
+  group_by(bedrooms) %>%
+  summarize(promedio = mean(metros_cuadrados_por_bedrooms, na.rm = TRUE))
+promedio_metros_casas
+
+
+# Accede a la media directamente desde el marco de datos resultante
+media_metros_cuadrados_por_bedrooms <- promedio_metros_casas$promedio
+
+
+# Calculo de la Media y Varianza Casas
+media_metros_cuadrados_por_bedrooms <- c(82.39600, 399.11630, 57.48632, 207.74821, 51.60242, 45.01286, 32.27844, 34.44500, 34.74000, 34.74000, 30.52857)
+media_m2_casas <- c(82.39600, 57.48632, 51.60242, 45.01286, 32.27844, 34.44500, 34.74000, 34.74000, 30.52857)
+
+media_metros2_bedrooms_casas <- mean(media_m2_casas)
+desv_metros2_bedrooms_casas <- sd(media_m2_casas)
+max_media_m2_casas = media_metros2_bedrooms_casas+3*desv_metros2_bedrooms_casas
+min_media_m2_casas = media_metros2_bedrooms_casas-2*desv_metros2_bedrooms_casas
+test$metros_cuadrados_por_bedrooms[test$property_type == "Casa" & test$metros_cuadrados_por_bedrooms < min_media_m2_casas] <- min_media_m2_casas
+test$metros_cuadrados_por_bedrooms[test$property_type == "Casa" & test$metros_cuadrados_por_bedrooms > max_media_m2_casas] <- max_media_m2_casas
+
+
+test$metros_cuadrados <- ifelse(test$property_type == "Casa" & (test$metros_cuadrados/test$bedrooms) < min_media_m2_casas,
+                                test$metros_cuadrados_por_bedrooms * test$bedrooms,
+                                test$metros_cuadrados)
+test$metros_cuadrados <- ifelse(test$property_type == "Casa" & (test$metros_cuadrados/test$bedrooms)  > max_media_m2_casas,
+                                test$metros_cuadrados_por_bedrooms * test$bedrooms,
+                                test$metros_cuadrados)
+
+
+##-------------------------------------Apartamentos---------------------------------##
+
+##----- Calcula el promedio de metros cuadrados por habitación exlclyendo los extremos--
+
+promedio_metros_apart <- test %>%
+  filter(property_type == "Apartamento") %>%  # Filtrar solo propiedades de tipo "Casa"
+  group_by(bedrooms) %>%
+  mutate(
+    lower_limit = quantile(metros_cuadrados_por_bedrooms, 0.05, na.rm = TRUE),
+    upper_limit = quantile(metros_cuadrados_por_bedrooms, 0.95, na.rm = TRUE)
+  ) %>%
+  filter(metros_cuadrados_por_bedrooms >= lower_limit & metros_cuadrados_por_bedrooms <= upper_limit) %>%
+  summarize(
+    promedio = mean(metros_cuadrados_por_bedrooms, na.rm = TRUE)
+  )
+promedio_metros_apart
+
+# Accede a la media directamente desde el marco de datos resultante
+media_m2_bedrooms <- promedio_metros_apart$promedio
+media_m2_bedrooms_d <- c(101, 53.9, 50.5, 50.6, 46.5, 49.38000, 49.38000, 49.38000, 746.00)
+media_m2_bedrooms_d2 <- c(101, 53.9, 50.5, 50.6, 46.5, 49.38000, 49.38000, 49.38000)
+
+# Calculo de la Media y Varianza Casas
+desv_media_m2_bedrooms_d <- sd(media_m2_bedrooms_d2)
+desv_media_m2_bedrooms_d
+media_m2_bedrooms_d <- mean(media_m2_bedrooms_d2)
+media_m2_bedrooms_d
+
+max_media_m2_apart = media_m2_bedrooms_d+2*desv_media_m2_bedrooms_d
+min_media_m2_apart = media_m2_bedrooms_d-2*desv_media_m2_bedrooms_d
+test$metros_cuadrados_por_bedrooms[test$property_type == "Apartamento" & test$metros_cuadrados_por_bedrooms < min_media_m2_apart] <- min_media_m2_apart
+test$metros_cuadrados_por_bedrooms[test$property_type == "Apartamento" & test$metros_cuadrados_por_bedrooms > max_media_m2_apart] <- max_media_m2_apart
+
+test$metros_cuadrados <- ifelse(test$property_type == "Apartamento" & (test$metros_cuadrados/test$bedrooms) < min_media_m2_apart,
+                                test$metros_cuadrados_por_bedrooms * test$bedrooms,
+                                test$metros_cuadrados)
+test$metros_cuadrados <- ifelse(test$property_type == "Apartamento" & (test$metros_cuadrados/test$bedrooms)  > max_media_m2_apart,
+                                test$metros_cuadrados_por_bedrooms * test$bedrooms,
+                                test$metros_cuadrados)
+
+test$nueva_surface <- test$metros_cuadrados
+
+# Calcular la media de nueva_surface por número de habitaciones
+media_por_numero_habitaciones <- aggregate(nueva_surface ~ bedrooms, data = test, FUN = mean, na.rm = TRUE)
+media_por_numero_habitaciones
+summary(test$nueva_surface)
+
+ggplot(test, aes(x = nueva_surface)) +
+  geom_histogram(bins = 30, fill = "blue", color = "black", alpha = 0.7) +
+  scale_y_log10()
+
+# Reemplazar comas por nada y agregar un punto decimal
+test$lat<- gsub(",", "", test$lat)  # Eliminar comas
+test$lat <- sub("^(\\d{2})(\\d{3})(\\d{3})$", "\\1.\\2\\3", test$lat)  # Corregir ubicación del decimal
+
+# Convertir la columna latitud a numérico
+test$lat <- gsub(",", ".", test$lat)
+test$lat<- as.character(test$lat)
+test$lat<- gsub("\\.", "", test$lat)  # Eliminar puntos
+test$lat<- sub("^(.{1})(.*)$", "\\1.\\2", test$lat)  # Corregir ubicación del decimal
+head(test$lat)
+test$lat<- as.numeric(test$lat)
+
+# Reemplazar comas por nada y agregar un punto decimal
+# Reemplazar las comas y corregir la ubicación del decimal en la columna "longitud"
+test$lon <- gsub(",", ".", test$lon)
+# Remover los puntos y corregir la ubicación del decimal en lon
+test$lon <- as.character(test$lon)
+test$lon <- gsub("\\.", "", test$lon)  # Eliminar puntos
+test$lon<- sub("^(.{3})(.*)$", "\\1.\\2", test$lon)  # Corregir ubicación del decimal
+head(test$lon)
+test$lon <- gsub(",", ".", test$lon)
+# Convertir la columna lon a numérico decimal
+test$lon <- as.numeric(test$lon)
+
+# Redondear los valores
+test$lon <- round(test$lon, digits = 9)
+###############Crear la variable garaje
+test <- test %>%
+  mutate(garaje = as.numeric(grepl("garaje", description)),
+         parqueadero = as.numeric(grepl("parqueadero", description)),
+         total_parqueo = garaje + parqueadero)
+
+# Sustituir el valor "2" por "1" en total_parqueo
+test$total_parqueo <- ifelse(test$total_parqueo == 2, 1, test$total_parqueo)
+# Eliminamos las observaciones que no tienen información de latitud o longitud
+# Identificar filas con valores no numéricos en lon
+non_numeric_lon <- !is.na(test$lon) & !is.numeric(test$lon)
+non_numeric_lat <- !is.na(test$lat) & !is.numeric(test$lat)
+
+test$lon <- as.numeric(test$lon)
+test$lat <- as.numeric(test$lat)
+
+test <- test %>%
+  filter(!is.na(lat) & !is.na(lon))
+
+# Observamos la primera visualización
+leaflet() %>%
+  addTiles() %>%
+  addCircles(lng = test$lon, lat = test$lat)
+
+# Crear una variable binaria "tiene_terrazz" basada en la descripción
+test$tiene_terraza <- as.numeric(grepl("terraza", test$description, ignore.case = TRUE))
+table(test$tiene_terraza)
+# Mostrar las primeras filas del dataframe con la nueva variable
+head(train)
+table(test$tiene_terraza)
+casas_con_terrazas <- sum(test$tiene_terraza == 1)
+casas_con_terrazas
+# Crear una nueva columna "tiene_bbq" basada en la descripción
+test$tiene_bbq <- grepl("BBQ|barbacoa", test$description, ignore.case = TRUE)
+
+# Convertir valores lógicos en 1 (Tiene BBQ) y 0 (No tiene BBQ)
+test$tiene_bbq <- as.numeric(test$tiene_bbq)
+
+# Verificar la nueva variable "tiene_bbq"
+table(test$tiene_bbq)
+
+
+# Definir los límites geográficos de Bogotá
+limites_bogota <- getbb("Bogotá, Colombia")
+
+# Filtrar observaciones dentro de los límites de Bogotá
+test_filtrado_bogota <- test %>%
+  filter(
+    between(lon, limites_bogota[1, "min"], limites_bogota[1, "max"]) &
+      between(lat, limites_bogota[2, "min"], limites_bogota[2, "max"])
+  )
+
+# Luego creamos una variable de color que debende del tipo de immueble.
+
+
+# Crear una nueva columna "color" basada en el tipo de propiedad
+test <- test %>%
+  mutate(color = case_when(property_type == "Apartamento" ~ "#2A9D8F",
+                           property_type == "Casa" ~ "#F4A261"))
+
+# Encontrar el centro del mapa
+latitud_central <- mean(test$lat)
+longitud_central <- mean(test$lon)
+
+# Crear el mensaje en el popup con HTML
+html <- paste0("<br> <b>Area:</b> ",
+               as.integer(test$nueva_surface), " mt2",
+               "<br> <b>Tipo de inmueble:</b> ",
+               test$property_type,
+               "<br> <b>Numero de alcobas:</b> ",
+               as.integer(test$rooms),
+               "<br> <b>Numero de baños:</b> ",
+               as.integer(test$bathrooms))
+
+# Crear la variable Parques
+# Cargar las bibliotecas necesarias
+library(osmdata)
+library(sf)
+
+##---------------------------- DISTANCIA PARQUES  ----------------------------###
+##----------------------------------------------------------------------------###
+
+ubicacion <- "Chapinero, Bogotá, Colombia"
+bbox_chapinero <- getbb(ubicacion)
+bbox_chapinero
+
+parques <- opq(bbox = getbb("Bogotá, Colombia")) %>%
+  add_osm_feature(key = "leisure" , value = "park")
+
+parques_sf <- osmdata_sf(parques)
+parques_geometria <- parques_sf$osm_polygons %>%
+  select(osm_id, name)
+
+centroides <- st_centroid(parques_geometria)
+
+# Encontrar el centro del mapa
+latitud_central <- mean(bbox_chapinero["lat"])
+longitud_central <- mean(bbox_chapinero["lon"])
+
+test_sf <- st_as_sf(test, coords = c("lon", "lat"), crs = 4326)
+centroides_sf <- st_as_sf(centroides, coords = c("x", "y"), crs = 4326)
+distancias <- st_distance(test_sf, centroides_sf)
+dist_min <- apply(distancias, 1, min)
+test_sf$distancia_parque <- dist_min
+
+
+##---------------------------- CENTROS COMERCIALES----------------------------###
+##----------------------------------------------------------------------------###
+
+# Definir la ubicación de interés (Chapinero, Bogotá, Colombia)
+#ubicacion <- "Chapinero, Bogotá, Colombia"
+
+# Obtener los límites geográficos (BBOX) de la ubicación de Chapinero
+#bbox_chapinero <- getbb(ubicacion)
+
+# Definir la búsqueda de centros comerciales en Chapinero
+centros_comerciales_chapinero <- opq(bbox = bbox_chapinero) %>%
+  add_osm_feature(key = "shop", value = "mall")
+
+# Cambiar el formato para que sea un objeto sf (simple features)
+centros_comerciales_chapinero_sf <- osmdata_sf(centros_comerciales_chapinero)
+
+# De las features de centros comerciales, nos interesa su geometría y ubicación
+centros_comerciales_geometria <- centros_comerciales_chapinero_sf$osm_points %>%
+  select(osm_id, name)
+
+# Calcular el centroide de cada centro comercial para aproximar su ubicación como un solo punto
+centroides_centros_comerciales <- st_centroid(centros_comerciales_geometria)
+
+# Convertir los datos de 'test' a un objeto sf y especificar el sistema de coordenadas
+#test_sf <- st_as_sf(test, coords = c("lon", "lat"), crs = 4326)
+
+# Calcular las distancias para cada combinación inmueble - centro comercial
+distancias_centros_comerciales <- st_distance(test_sf, centroides_centros_comerciales)
+dist_min_centros_comerciales <- apply(distancias_centros_comerciales, 1, min)
+test_sf$distancia_centros_comerciales <- dist_min_centros_comerciales
+
+# Mantener las distancias a parques y centros comerciales en 'test_sf'
+test_sf$distancia_parque <- dist_min
+test_sf$distancia_centros_comerciales <- dist_min_centros_comerciales
+
+###-----------------------------SUPERMERCADOS-------------------------------###
+##--------------------------------------------------------------------------###
+
+
+## Definir la búsqueda de supermercados en Chapinero
+supermercados_chapinero <- opq(bbox = bbox_chapinero) %>%
+  add_osm_feature(key = "shop", value = "supermarket")
+
+# Cambiar el formato para que sea un objeto sf (simple features)
+supermercados_chapinero_sf <- osmdata_sf(supermercados_chapinero)
+
+# De las features de supermercados, nos interesa su geometría y ubicación
+supermercados_geometria <- supermercados_chapinero_sf$osm_points %>%
+  select(osm_id, name)
+
+# Calcular el centroide de cada supermercado para aproximar su ubicación como un solo punto
+centroides_supermercados <- st_centroid(supermercados_geometria)
+
+# Calcular las distancias para cada combinación inmueble - supermercado
+distancias_supermercados <- st_distance(test_sf, centroides_supermercados)
+
+# Encontrar la distancia mínima a un supermercado
+dist_min_supermercados <- apply(distancias_supermercados, 1, min)
+
+# Agregar la distancia mínima como una nueva columna en 'test_sf'
+test_sf$distancia_supermercados <- dist_min_supermercados
+
+
+###--------------------------------TRANSMILENIO-------------------------------------------###
+##----------------------------------------------------------------------------------------###
+
+# Definir la ubicación de interés (Chapinero, Bogotá, Colombia)
+ubicacion <- "Chapinero, Bogotá, Colombia"
+
+# Obtener los límites geográficos (BBOX) de la ubicación
+bbox_chapinero <- getbb(ubicacion)
+
+# Definir la búsqueda de estaciones de TransMilenio en Chapinero
+transmilenio_chapinero <- opq(bbox = bbox_chapinero) %>%
+  add_osm_feature(key = "network", value = "TransMilenio")
+
+# Cambiar el formato para que sea un objeto sf (simple features)
+transmilenio_chapinero_sf <- osmdata_sf(transmilenio_chapinero)
+
+# De las features de estaciones de TransMilenio, nos interesa su geometría y ubicación
+transmilenio_geometria <- transmilenio_chapinero_sf$osm_points %>%
+  select(osm_id, geometry)
+
+# Calcular el centroide de cada estación de TransMilenio para aproximar su ubicación como un solo punto
+centroides_transmilenio <- st_centroid(transmilenio_chapinero_sf$osm_points)
+
+# Calcular las distancias para cada combinación inmueble - estación de TransMilenio
+distancias_transmilenio <- st_distance(test_sf, centroides_transmilenio)
+
+# Encontrar la distancia mínima a una estación de TransMilenio
+dist_min_transmilenio <- apply(distancias_transmilenio, 1, min)
+
+# Agregar la distancia mínima como una nueva columna en 'test_sf'
+test_sf$distancia_transmilenio <- dist_min_transmilenio
+head(test_sf)
+
+###-----------DISTANCIA UNIVERSIDADES EN CHAPINERO--------------------------------------###
+##--------------------------------------------------------------------------------------###
+
+universidades_chapinero <- opq(bbox = bbox_chapinero) %>%
+  add_osm_feature(key = "amenity", value = "university")
+
+# Cambiar el formato para que sea un objeto sf (simple features)
+universidades_chapinero_sf <- osmdata_sf(universidades_chapinero)
+
+# De las features de universidades, nos interesa su geometría y ubicación
+universidades_geometria <- universidades_chapinero_sf$osm_points %>%
+  select(osm_id, name)
+
+# Calcular el centroide de cada universidad para aproximar su ubicación como un solo punto
+centroides_universidades <- st_centroid(universidades_geometria)
+
+# Calcular las distancias para cada combinación inmueble - universidad
+distancias_universidades <- st_distance(test_sf, centroides_universidades)
+
+# Encontrar la distancia mínima a una universidad
+dist_min_universidades <- apply(distancias_universidades, 1, min)
+
+# Agregar la distancia mínima como una nueva columna en 'test_sf'
+test_sf$distancia_universidades <- dist_min_universidades
+
+# Visualizar el conjunto de datos 'test_sf' con las nuevas variables
+head(test_sf)
+
+###-----------------DISTANCIA RESTAURANTES EN CHAPINERO ----------------------###
+###---------------------------------------------------------------------------###
+
+# Definir la ubicación de interés (Chapinero, Bogotá, Colombia)
+ubicacion_chapinero <- "Chapinero, Bogotá, Colombia"
+
+# Obtener los límites geográficos (BBOX) de la ubicación en Chapinero
+bbox_chapinero <- getbb(ubicacion_chapinero)
+
+# Definir la búsqueda de restaurantes y bares en un solo grupo en Chapinero
+restaurantes_bares <- opq(bbox = bbox_chapinero) %>%
+  add_osm_feature(key = "amenity", value = c("restaurant", "bar"))
+
+# Cambiar el formato para que sea un objeto sf (simple features)
+restaurantes_bares_sf <- osmdata_sf(restaurantes_bares)
+
+# De las features de restaurantes y bares en Chapinero, nos interesa su geometría y ubicación
+restaurantes_bares_geometria <- restaurantes_bares_sf$osm_points %>%
+  select(osm_id)
+
+# Calcular el centroide de cada restaurante y bar en Chapinero para aproximar su ubicación como un solo punto
+centroides_restaurantes_bares <- st_centroid(restaurantes_bares_geometria)
+
+# Calcular las distancias para cada combinación inmueble - restaurante/bar en Chapinero
+distancias_restaurantes_bares <- st_distance(test_sf, centroides_restaurantes_bares)
+
+# Encontrar la distancia mínima a un restaurante o bar en Chapinero
+dist_min_restaurantes_bares <- apply(distancias_restaurantes_bares, 1, min)
+
+# Agregar la distancia mínima como una nueva columna en 'test_sf'
+test_sf$distancia_restaurantes_bares <- dist_min_restaurantes_bares
+
+# Visualizar el conjunto de datos 'test_sf' con la nueva variable
+head(test_sf)
+
+
+test<- cbind(test, test_sf[c("distancia_parque","distancia_transmilenio","distancia_supermercados","distancia_universidades", "distancia_centros_comerciales","distancia_restaurantes_bares")])
+
+# Imputar los Valores para los Baños
+test_b_b <- test[complete.cases(test[c("bedrooms", "bathrooms")]), ]
+mediat_b_b <- mean(test_b_b$bedrooms / test_b_b$bathrooms)
+test$bathrooms[is.na(test$bathrooms)] <- test$bedrooms[is.na(test$bathrooms)] / mediat_b_b
+test$bathrooms <- round(test$bathrooms) 
+
+test <- data.frame(localidad = "Chapinero", test)
+test$Estrato <- "4"
+
+#Tabla_test <- "C:/Output R/Taller 2/Taller_2/Tabla_2.xlsx"  
+#write_xlsx(test, Tabla_test)
+
+
+
+# Renombrar las variables para una mayor comprensión de las variables que estamos trabajando
+test <- test %>% rename(Precio=price) 
+test <- test %>% rename(Habitaciones=bedrooms)
+test <- test %>% rename(Baños=bathrooms) 
+test <- test %>% rename(Area=nueva_surface)
+test <- test %>% rename(M2_por_Habitación=metros_cuadrados_por_bedrooms)
+test <- test %>% rename(Terraza=tiene_terraza) 
+test <- test %>% rename(Sala_BBQ=tiene_bbq) 
+test <- test %>% rename(Garaje=total_parqueo) 
+test <- test %>% rename(Dist_Parques=distancia_parque) 
+test <- test %>% rename(Dist_Transmilenio=distancia_transmilenio) 
+test <- test %>% rename(Dist_Supermercados=distancia_supermercados)
+test <- test %>% rename(Dist_C_Comerc=distancia_centros_comerciales) 
+test <- test %>% rename(Dist_Universidades=distancia_universidades)
+test <- test %>% rename(Dist_Restaurantes=distancia_restaurantes_bares) 
+
+
+##--------------------------- Bases de Datos Train y Test Comparativas------------------##
+
+
+
+
