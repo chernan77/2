@@ -47,16 +47,24 @@ p_load(tidyverse, # Manipular dataframes
        tidymodels,
        dplyr) #para modelos de ML
 
+carpeta <- "C:/Output R/Taller 2/Taller_2/stores/"
 
-submission_template <- read_excel("C:/Output R/Taller 2/Taller_2/stores/submission_template.xlsx", sheet = "submission_template")
-train <- read_excel("C:/Output R/Taller 2/Taller_2/stores/train.xlsx", sheet = "train")
-test <- read_excel("C:/Output R/Taller 2/Taller_2/stores/test.xlsx", sheet = "test")
+archivos_a_importar <- c("test.csv", "train.csv", "submission_template.csv")
+
+# Crea bases de datos separadas para cada archivo
+for (archivo in archivos_a_importar) {
+  
+  nombre <- tools::file_path_sans_ext(archivo)
+  
+  assign(nombre, read.csv(file.path(carpeta, archivo)))
+}
+
 estrato <- read_excel("C:/Output R/Taller 2/Taller_2/stores/estrato.xlsx", sheet = "estrato")
 
 train %>%
   summarise_all(~sum(is.na(.))) %>% transpose()
 
-# IMPUTACIÓN DE DATOS
+# -----------------------DUPERACIÓN DE DATOS------------------------------------# 
 
 #Imputacion del precio
 any(is.na(train$price))
@@ -85,6 +93,9 @@ train <- train %>%
 train$bedrooms <- ifelse(train$bedrooms == 0, train$rooms, train$bedrooms)
 mediana_bedrooms <- median(train$bedrooms, na.rm = TRUE)
 train$bedrooms <- ifelse(is.na(train$bedrooms), mediana_bedrooms, train$bedrooms)
+
+train <- train %>%
+  mutate(surface_total = ifelse(is.na(surface_total), surface_covered, surface_total))
 
 # Primero normalizaremos todo el texto
 # Todo en minuscula
@@ -158,7 +169,6 @@ print(resumen_nueva_surface)
 frecuencias <- table(train$nueva_surface)
 moda <- names(frecuencias)[which.max(frecuencias)]
 
-
 train$rooms <- as.numeric(train$rooms)
 train$bedrooms <- as.numeric(train$bedrooms)
 train$bathrooms <- as.numeric(train$bathrooms)
@@ -179,7 +189,6 @@ train <- train %>%
     umbral_inferior = max(Q1 - 1.5 * IQR_valor, 49),
     umbral_superior = Q3 + 1.5 * IQR_valor
   )
-
 
 # Imputar valores mínimos y máximos basados en umbrales por número de habitaciones
 train$nueva_surface <- pmax(train$nueva_surface, train$umbral_inferior)
@@ -217,8 +226,6 @@ ggplot(train, aes(x = nueva_surface, y = price)) +
               color = "blue") + # Color de la línea
   labs(x = "Metros Cuadrados", y = "Precio") +
   ggtitle("Correlación entre Precio y Metros Cuadrados")
-
-
 
 
 # Remover los puntos y corregir la ubicación del decimal utilizando expresiones regulares
@@ -289,7 +296,7 @@ leaflet() %>%
 
 library(dplyr)
 
-#######Crear Terraza
+## ---------------------------------Crear Terraza---------------------------------##
 # Crear una variable binaria "tiene_terrazz" basada en la descripción
 train$tiene_terraza <- as.numeric(grepl("terraza", train$description, ignore.case = TRUE))
 
@@ -298,7 +305,44 @@ head(train)
 table(train$tiene_terraza)
 casas_con_terrazas <- sum(train$tiene_terraza == 1)
 casas_con_terrazas
-# Crear una nueva columna "tiene_bbq" basada en la descripción
+
+## ---------------------------------Crear Piscina---------------------------------##
+# Crear una variable binaria "piscina" basada en la descripción
+train$Piscina <- as.numeric(grepl("piscina|picina", train$description, ignore.case = TRUE))
+
+# Mostrar las primeras filas del dataframe con la nueva variable
+head(train)
+table(train$Piscina)
+casas_con_piscina <- sum(train$Piscina == 1)
+casas_con_piscina
+
+## ---------------------------------Crear Gimnasio---------------------------------##
+
+train$Gimnasio <- as.numeric(grepl("gimnasio", train$description, ignore.case = TRUE))
+
+# Mostrar las primeras filas del dataframe con la nueva variable
+head(train)
+table(train$Gimnasio)
+casas_con_gimnasio <- sum(train$Gimnasio == 1)
+casas_con_gimnasio
+
+## ---------------------------------Crear Chiminea---------------------------------##
+
+train$Chimenea <- as.numeric(grepl("chimenea|chiminea", train$description, ignore.case = TRUE))
+head(train)
+table(train$Chimenea)
+casas_con_chimenea <- sum(train$Chimenea == 1)
+casas_con_chimenea
+
+## ---------------------------------Seguridad Privada---------------------------------##
+
+train$Seguridad <- as.numeric(grepl("vigilancia|sistema de seguridad|seguridad privada|seguridad 24|seguridad las veinticuatro horas|seguridad las 24", train$description, ignore.case = TRUE))
+head(train)
+table(train$Seguridad)
+casas_con_seguridad <- sum(train$Seguridad == 1)
+casas_con_seguridad
+
+## ---------------------------------Crear Sala BBQ---------------------------------##
 train$tiene_bbq <- grepl("BBQ|barbacoa", train$description, ignore.case = TRUE)
 
 # Convertir valores lógicos en 1 (Tiene BBQ) y 0 (No tiene BBQ)
@@ -1048,8 +1092,9 @@ Tabla_Stat_D <- train_apart  %>% select(Precio,
 
 stargazer(data.frame(Tabla_Stat_D), header=FALSE, type='text',title="Estadisticas Variables Seleccionadas Apartamentos")
 
-Tabla_train <- "C:/Output R/Taller 2/Taller_2/Tabla_1.xlsx"  
-write_xlsx(train, Tabla_train)
+#Tabla_train <- "C:/Output R/Taller 2/Taller_2/Tabla_1.xlsx"  
+#write_xlsx(train, Tabla_train)
+
 ##############################################################################################################
 #--------------------------------------------- CHAPINERO-----------------------------------------------------#
 ###################################################TEST########################################################
@@ -1299,7 +1344,44 @@ head(train)
 table(test$tiene_terraza)
 casas_con_terrazas <- sum(test$tiene_terraza == 1)
 casas_con_terrazas
-# Crear una nueva columna "tiene_bbq" basada en la descripción
+
+## ---------------------------------Crear Piscina---------------------------------##
+# Crear una variable binaria "piscina" basada en la descripción
+test$Piscina <- as.numeric(grepl("piscina|picina", test$description, ignore.case = TRUE))
+
+# Mostrar las primeras filas del dataframe con la nueva variable
+head(test)
+table(test$Piscina)
+casas_con_piscina1 <- sum(test$Piscina == 1)
+casas_con_piscina1
+
+## ---------------------------------Crear Gimnasio---------------------------------##
+
+test$Gimnasio <- as.numeric(grepl("gimnasio", test$description, ignore.case = TRUE))
+
+# Mostrar las primeras filas del dataframe con la nueva variable
+head(test)
+table(test$Gimnasio)
+casas_con_gimnasio1 <- sum(test$Gimnasio == 1)
+casas_con_gimnasio1
+
+## ---------------------------------Crear Chiminea---------------------------------##
+
+test$Chimenea <- as.numeric(grepl("chimenea|chiminea", test$description, ignore.case = TRUE))
+head(test)
+table(test$Chimenea)
+casas_con_chimenea1 <- sum(test$Chimenea == 1)
+casas_con_chimenea1
+
+## ---------------------------------Seguridad Privada---------------------------------##
+
+test$Seguridad <- as.numeric(grepl("vigilancia|sistema de seguridad|seguridad privada|seguridad 24|seguridad las veinticuatro horas|seguridad las 24", train$description, ignore.case = TRUE))
+head(test)
+table(test$Seguridad)
+casas_con_seguridad1 <- sum(test$Seguridad == 1)
+casas_con_seguridad1
+
+## ---------------------------------Sala BBQ----------------------------------------##
 test$tiene_bbq <- grepl("BBQ|barbacoa", test$description, ignore.case = TRUE)
 
 # Convertir valores lógicos en 1 (Tiene BBQ) y 0 (No tiene BBQ)
@@ -1546,7 +1628,6 @@ test$Estrato <- "4"
 
 #Tabla_test <- "C:/Output R/Taller 2/Taller_2/Tabla_2.xlsx"  
 #write_xlsx(test, Tabla_test)
-
 
 
 # Renombrar las variables para una mayor comprensión de las variables que estamos trabajando
