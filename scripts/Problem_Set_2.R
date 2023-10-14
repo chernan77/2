@@ -1041,6 +1041,12 @@ media_b_b <- mean(data_b_b$Habitaciones / data_b_b$Baños)
 train_casas$Baños[is.na(train_casas$Baños)] <- train_casas$Habitaciones[is.na(train_casas$Baños)] / media_b_b
 train_casas$Baños <- round(train_casas$Baños) 
 
+# Calcular el precio por metro cuadrado
+train <- train %>%
+  mutate(Precio_M2 = round(Precio / Area))
+
+train <- train %>%
+  mutate(M2_por_Habitación = round(Area / Habitaciones))
 
 # Revisión de stadística descriptivas de variables para el Modelo
 Tabla_Stat <- train_casas  %>% select(Precio, 
@@ -1375,7 +1381,7 @@ casas_con_chimenea1
 
 ## ---------------------------------Seguridad Privada---------------------------------##
 
-test$Seguridad <- as.numeric(grepl("vigilancia|sistema de seguridad|seguridad privada|seguridad 24|seguridad las veinticuatro horas|seguridad las 24", train$description, ignore.case = TRUE))
+test$Seguridad <- as.numeric(grepl("vigilancia|sistema de seguridad|seguridad privada|seguridad 24|seguridad las veinticuatro horas|seguridad las 24", t8$description, ignore.case = TRUE))
 head(test)
 table(test$Seguridad)
 casas_con_seguridad1 <- sum(test$Seguridad == 1)
@@ -1645,6 +1651,10 @@ test <- test %>% rename(Dist_Supermercados=distancia_supermercados)
 test <- test %>% rename(Dist_C_Comerc=distancia_centros_comerciales) 
 test <- test %>% rename(Dist_Universidades=distancia_universidades)
 test <- test %>% rename(Dist_Restaurantes=distancia_restaurantes_bares) 
+
+test <- test %>%
+  mutate(M2_por_Habitación = round(Area / Habitaciones))
+
 
 
 ##--------------------------- Bases de Datos Train y Test Comparativas------------------##
