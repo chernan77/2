@@ -54,18 +54,19 @@ p_load(tidyverse, # Manipular dataframes
        tidymodels,
        dplyr) #para modelos de ML
 
+dir <-  "C:/Output R/Taller 2/Taller_2"
 
 # List of URLs
 urls <- c(
-  "https://github.com/chernan77/Taller_2/raw/main/submission_template.csv",
-  "https://github.com/chernan77/Taller_2/raw/main/train.csv",
-  "https://github.com/chernan77/Taller_2/raw/main/test.csv",
+  "https://github.com/chernan77/Taller_2/blob/main/stores/submission_template.csv",
+  "https://github.com/chernan77/Taller_2/blob/main/stores/train.csv",
+  "https://github.com/chernan77/Taller_2/blob/main/stores/test.csv",
   "https://github.com/chernan77/Taller_2/raw/main/estrato.xlsx"
 )
 
 # Download the files
 for (url in urls) {
-  filename <- basename(url)  # Get the filename from the URL
+  filename <- file.path(dir, basename(url))
   download.file(url, filename, method = "auto", mode = "wb")
 }
 
