@@ -3,7 +3,6 @@
 
 # Celin Hernández: 202210067
 # Merit Tejeda: 202210104
-# Estefanía Laborde: 201533743
 
 install.packages("readxl")
 install.packages("pacman")
@@ -47,7 +46,8 @@ p_load(tidyverse, # Manipular dataframes
        tidymodels,
        dplyr) #para modelos de ML
 
-carpeta <- "C:/Output R/Taller 2/Taller_2/stores/"
+#carpeta <- "C:/Output R/Taller 2/Taller_2/stores/"
+carpeta <- "C:/Users/TuUsuario/Documents/Machine Learning/Taller_2/stores/"
 
 archivos_a_importar <- c("test.csv", "train.csv", "submission_template.csv")
 
@@ -59,7 +59,8 @@ for (archivo in archivos_a_importar) {
   assign(nombre, read.csv(file.path(carpeta, archivo)))
 }
 
-estrato <- read_excel("C:/Output R/Taller 2/Taller_2/stores/estrato.xlsx", sheet = "estrato")
+#estrato <- read_excel("C:/Output R/Taller 2/Taller_2/stores/estrato.xlsx", sheet = "estrato")
+estrato <- read_excel("C:/Users/TuUsuario/Documents/Machine Learning/Taller_2/stores/estrato.xlsx", sheet = "estrato")
 
 train %>%
   summarise_all(~sum(is.na(.))) %>% transpose()
@@ -837,8 +838,8 @@ graf_deptos
 grid.arrange(graf_casas, graf_deptos, ncol = 2)
 
 # Establece la ubicación y el nombre del archivo de salida
-Tabla_train1 <- "C:/Output R/Taller 2/Taller_2/Tabla_1.xlsx"  
-write_xlsx(train, Tabla_train1)
+#Tabla_train1 <- "C:/Output R/Taller 2/Taller_2/Tabla_1.xlsx"  
+#write_xlsx(train, Tabla_train1)
 
 
 
