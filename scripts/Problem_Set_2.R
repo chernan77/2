@@ -20,6 +20,9 @@ install.packages("geopy")
 install.packages("stargazer")
 install.packages("zoo")
 install.packages("gridExtra")
+install.packages("tidyverse")
+install.packages("rvest")
+install.packages("sf")
 library(osmdata)
 library(leaflet)
 library(ggplot2)
@@ -33,7 +36,9 @@ library(ggmap)
 library(stargazer)
 library(gridExtra)
 library(zoo)
-
+library(tidyverse)
+library(rvest)
+library(sf)
 
 # Cargar las librerías listadas e instalarlas en caso de ser necesario
 p_load(tidyverse, # Manipular dataframes
@@ -576,9 +581,11 @@ ubicacion <- "Bogotá, Colombia"
 # Obtener los límites geográficos (BBOX) de la ubicación
 bbox_bogota <- getbb(ubicacion)
 
+etiquetas_educativos <- c("school", "college", "university", "library", "kindergarten")
+
 # Definir la ubicación de interés (en este caso, Bogotá, Colombia) y buscar universidades
 universidades <- opq(bbox = getbb("Bogotá, Colombia")) %>%
-  add_osm_feature(key = "amenity", value = "university")
+  add_osm_feature(key = "amenity", value = etiquetas_educativos)
 
 # Cambiar el formato para que sea un objeto sf (simple features)
 universidades_sf <- osmdata_sf(universidades)
@@ -1034,6 +1041,8 @@ train_casas <- train[train$property_type == "Casa", c("property_id","title", "mo
                                                       "Dist_Parques", "Dist_Transmilenio", "Dist_Supermercados", 
                                                       "Dist_C_Comerc", "Dist_Universidades", "Dist_Restaurantes")]
 
+Tabla_train_casas <- "C:/Output R/Taller 2/Taller_2/Tabla_c.xlsx"  
+write_xlsx(train_casas, Tabla_train_casas)
 
 # Imputar los Valores para los Baños
 data_b_b <- train_casas[complete.cases(train_casas[c("Habitaciones", "Baños")]), ]
@@ -1381,7 +1390,7 @@ casas_con_chimenea1
 
 ## ---------------------------------Seguridad Privada---------------------------------##
 
-test$Seguridad <- as.numeric(grepl("vigilancia|sistema de seguridad|seguridad privada|seguridad 24|seguridad las veinticuatro horas|seguridad las 24", t8$description, ignore.case = TRUE))
+test$Seguridad <- as.numeric(grepl("vigilancia|sistema de seguridad|seguridad privada|seguridad 24|seguridad las veinticuatro horas|seguridad las 24", test$description, ignore.case = TRUE))
 head(test)
 table(test$Seguridad)
 casas_con_seguridad1 <- sum(test$Seguridad == 1)
@@ -1560,8 +1569,11 @@ head(test_sf)
 ###-----------DISTANCIA UNIVERSIDADES EN CHAPINERO--------------------------------------###
 ##--------------------------------------------------------------------------------------###
 
-universidades_chapinero <- opq(bbox = bbox_chapinero) %>%
-  add_osm_feature(key = "amenity", value = "university")
+etiquetas_educativos <- c("school", "college", "university", "library", "kindergarten")
+
+# Definir la ubicación de interés (en este caso, Bogotá, Colombia) y buscar universidades
+universidades_chapinero <- opq(bbox = getbb("Bogotá, Colombia")) %>%
+  add_osm_feature(key = "amenity", value = etiquetas_educativos)
 
 # Cambiar el formato para que sea un objeto sf (simple features)
 universidades_chapinero_sf <- osmdata_sf(universidades_chapinero)
@@ -1658,7 +1670,7 @@ test <- test %>%
 test$Precio_M2 <- NA
 test$lPrecio <- NA
 
-##--------------------------- Bases de Datos Train y Test Comparativas------------------##
+##--------------------------- Bases de Datos Casas y Apartamentos------------------##
 
 ##-----------------------------CASAS----------------------------------------
 
@@ -1676,5 +1688,29 @@ test_apart <- test[train$property_type == "Apartamento", c("property_id","title"
                                                              "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
                                                              "Dist_Parques", "Dist_Transmilenio", "Dist_Supermercados", 
                                                              "Dist_C_Comerc", "Dist_Universidades", "Dist_Restaurantes")]
+
+
+
+##---------------------------Elaboración de Modelos para pronosticar el Precio de las Casas------------------##
+##-----------------------------------------------------------------------------------------------------------##
+
+#----------------------------------------------- REGRESION LINEAL---------------------------------------------
+
+train_casas$lPrecio_M2 = log(train_casas$Precio_M2)
+train_casas$Habitaciones2 = (train_casas$Habitaciones)^2
+train_casas$Terraza_piscina = train_casas$Terraza * train_casas$Piscina
+train_casas$Gimnasio_seguridad = train_casas$Gimnasio * train_casas$Seguridad
+train_casas$Sala_BBQ_terraza = train_casas$Sala_BBQ * train_casas$Terraza
+train_casas$Area_Garaje = train_casas$Area * train_casas$Garaje
+
+Model1 <- lm(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + Area + Terraza + Area_Garaje + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+               Dist_Transmilenio + Dist_Supermercados + Dist_C_Comerc + Dist_Universidades + Dist_Restaurantes, data = train_casas)
+Model1_stargazer <- stargazer(Model1, type="text", omit.stat=c("ser","f","adj.rsq"))
+Model1_stargazer <- as.data.frame(Model1_stargazer)
+
+modelo_final <- step(Model1, direction = "backward", trace = 0)
+
+summary(modelo_final)
+
 
 
