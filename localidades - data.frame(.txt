@@ -1,0 +1,69 @@
+localidades <- data.frame(
+  Localidad = c("Santa Fe", "Usaquén", "Teusaquillo", "La Candelaria", "Engativá", "Suba", "Bosa", "Kennedy", "Fontibón", "Ciudad Bolívar", "Antonio Nariño", "Usme", "Barrios Unidos", "San Cristóbal", "Rafael Uribe Uribe", "Los Mártires", "Tunjuelito", "Puente Aranda"),
+  Longitud = c(-74.060071, -74.033055, -74.083913, -74.080661, -74.100196, -74.082256, -74.195850, -74.149874, -74.169382, -74.153087, -74.122283, -74.121821, -74.084313, -74.072592, -74.112790, -74.096674, -74.140652, -74.103571),
+  Latitud = c(4.611765, 4.736126, 4.635771, 4.601209, 4.704383, 4.752255, 4.620330, 4.619825, 4.669940, 4.546036, 4.583774, 4.496946, 4.669536, 4.554200, 4.558455, 4.608344, 4.580954, 4.612189),
+  Umbral = c(0.02, 0.03, 0.02, 0.02, 0.03, 0.03, 0.03, 0.02, 0.02, 0.04, 0.02, 0.09, 0.03, 0.03, 0.03, 0.02, 0.02, 0.06)
+)
+
+# Definir la ubicación de interés (Chapinero, Bogotá, Colombia)
+ubicacion <- "Chapinero, Bogotá, Colombia"
+
+# Obtener los límites geográficos (BBOX) de la ubicación de Chapinero
+bbox_chapinero <- getbb(ubicacion)
+
+# Definir la búsqueda de parques en Chapinero
+parques_chapinero <- opq(bbox = bbox_chapinero) %>%
+  add_osm_feature(key = "leisure", value = "park")
+
+# Cambiar el formato para que sea un objeto sf (simple features)
+parques_chapinero_sf <- osmdata_sf(parques_chapinero)
+
+# De las features de supermercados, nos interesa su geometría y ubicación
+parques_geometria <- parques_chapinero_sf$osm_points %>%
+  select(osm_id, name)
+
+# Cambiar el formato de los parques para que sean objetos sf (simple features)
+#parques_sf <- osm_data_chapinero$osm_polygons
+
+centroides_parques <- st_centroid(parques_geometria)
+# Convertir los datos de 'test' a un objeto sf y especificar el sistema de coordenadas
+test_sf <- st_as_sf(test, coords = c("lon", "lat"), crs = 4326)
+
+# Convertir los centroides de los parques a formato sf
+#centroides_sf <- st_as_sf(centroides, crs = 4326)
+
+# Calcular las distancias para cada combinación inmueble - parque
+distancias_parques <- st_distance(test_sf,centroides_parques)
+
+# Encontrar la distancia mínima a un parque
+dist_min_parques <- apply(distancias_parques, 1, min)
+
+# Agregar la distancia mínima como una nueva columna en 'test_sf'
+test_sf$distancias_parques <- dist_min_parques
+
+# Visualizar el conjunto de datos 'test_sf'
+head(test_sf)
+
+
+#---------------------------Casas--------------------------------##  
+test <- test %>%
+  filter(property_type == "Casa") %>%
+  group_by(bedrooms) %>%
+  mutate(
+    Q1 = quantile(metros_cuadrados, 0.25, na.rm = TRUE),
+    Q3 = quantile(metros_cuadrados, 0.75, na.rm = TRUE),
+    IQR_valor = Q3 - Q1,
+    umbral_inferior = max(Q1 - 1.5 * IQR_valor, 49),
+    umbral_superior = Q3 + 1.5 * IQR_valor
+  )
+#---------------------------Apartamentos----------------------------##
+test <- test %>%
+  filter(property_type == "Apartamento") %>%
+  group_by(bedrooms) %>%
+  mutate(
+    Q1 = quantile(metros_cuadrados, 0.25, na.rm = TRUE),
+    Q3 = quantile(metros_cuadrados, 0.75, na.rm = TRUE),
+    IQR_valor = Q3 - Q1,
+    umbral_inferior = max(Q1 - 1.5 * IQR_valor, 49),
+    umbral_superior = Q3 + 1.5 * IQR_valor
+  )		

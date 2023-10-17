@@ -1,4 +1,4 @@
-+#Problem Set 2
+#Problem Set 2
 #Big Data y Machine Learning para Economía Aplicada
 
 # Celin Hernández: 202210067
@@ -157,6 +157,7 @@ print(resumen_nueva_surface)
 
 frecuencias <- table(train$nueva_surface)
 moda <- names(frecuencias)[which.max(frecuencias)]
+
 
 
 train$rooms <- as.numeric(train$rooms)

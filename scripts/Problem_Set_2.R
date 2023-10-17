@@ -1029,8 +1029,8 @@ train <- train %>% rename(Estrato=estrato)
 ##-----------------------------CASAS----------------------------------------
 
 train_casas <- train[train$property_type == "Casa", c("property_id","title", "month", "year", "localidad","Estrato", "Precio", "lPrecio", 
-                                                      "Precio_M2", "Habitaciones", "Baños", "Area","M2_por_Habitación", "Terraza", 
-                                                      "Garaje", "Sala_BBQ", "lat", "lon",
+                                                      "Precio_M2", "Habitaciones", "Baños", "Area","M2_por_Habitación", "lat", "lon", "Terraza", 
+                                                      "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
                                                       "Dist_Parques", "Dist_Transmilenio", "Dist_Supermercados", 
                                                       "Dist_C_Comerc", "Dist_Universidades", "Dist_Restaurantes")]
 
@@ -1068,8 +1068,8 @@ stargazer(data.frame(Tabla_Stat), header=FALSE, type='text',title="Estadisticas 
 ##---------------------------------------Apartamentos ----------------------------------------##
 
 train_apart <- train[train$property_type == "Apartamento", c("property_id","title", "month", "year", "localidad","Estrato", "Precio", "lPrecio", 
-                                                             "Precio_M2", "Habitaciones", "Baños", "Area","M2_por_Habitación", "Terraza", 
-                                                             "Garaje", "Sala_BBQ", "lat", "lon",
+                                                             "Precio_M2", "Habitaciones", "Baños", "Area","M2_por_Habitación", "lat", "lon", "Terraza", 
+                                                             "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
                                                              "Dist_Parques", "Dist_Transmilenio", "Dist_Supermercados", 
                                                              "Dist_C_Comerc", "Dist_Universidades", "Dist_Restaurantes")]
 
@@ -1098,8 +1098,8 @@ Tabla_Stat_D <- train_apart  %>% select(Precio,
 
 stargazer(data.frame(Tabla_Stat_D), header=FALSE, type='text',title="Estadisticas Variables Seleccionadas Apartamentos")
 
-#Tabla_train <- "C:/Output R/Taller 2/Taller_2/Tabla_1.xlsx"  
-#write_xlsx(train, Tabla_train)
+Tabla_train <- "C:/Output R/Taller 2/Taller_2/Tabla_1.xlsx"  
+write_xlsx(train, Tabla_train)
 
 ##############################################################################################################
 #--------------------------------------------- CHAPINERO-----------------------------------------------------#
@@ -1655,10 +1655,26 @@ test <- test %>% rename(Dist_Restaurantes=distancia_restaurantes_bares)
 test <- test %>%
   mutate(M2_por_Habitación = round(Area / Habitaciones))
 
-
+test$Precio_M2 <- NA
+test$lPrecio <- NA
 
 ##--------------------------- Bases de Datos Train y Test Comparativas------------------##
 
+##-----------------------------CASAS----------------------------------------
 
+test_casas <- test[train$property_type == "Casa", c("property_id","title", "month", "year", "localidad","Estrato", "Precio", "lPrecio", 
+                                                      "Precio_M2", "Habitaciones", "Baños", "Area","M2_por_Habitación", "lat", "lon", "Terraza", 
+                                                      "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
+                                                      "Dist_Parques", "Dist_Transmilenio", "Dist_Supermercados", 
+                                                      "Dist_C_Comerc", "Dist_Universidades", "Dist_Restaurantes")]
+
+
+##---------------------------------------Apartamentos ----------------------------------------##
+
+test_apart <- test[train$property_type == "Apartamento", c("property_id","title", "month", "year", "localidad","Estrato", "Precio", "lPrecio", 
+                                                             "Precio_M2", "Habitaciones", "Baños", "Area","M2_por_Habitación", "lat", "lon", "Terraza", 
+                                                             "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
+                                                             "Dist_Parques", "Dist_Transmilenio", "Dist_Supermercados", 
+                                                             "Dist_C_Comerc", "Dist_Universidades", "Dist_Restaurantes")]
 
 
