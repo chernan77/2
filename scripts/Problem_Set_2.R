@@ -3,26 +3,26 @@
 
 # Celin Hernández: 202210067
 # Merit Tejeda: 202210104
-# Estefanía Laborde: 201533743
 
-install.packages("readxl")
-install.packages("pacman")
-install.packages("osmdata")
-install.packages("leaflet")
-install.packages("dplyr")
-install.packages("rgeos")
-install.packages("openxlsx")
-install.packages("ggplot2")
-install.packages("writexl")
-install.packages("geosphere")
-install.packages("ggmap")
-install.packages("geopy")
-install.packages("stargazer")
-install.packages("zoo")
-install.packages("gridExtra")
-install.packages("tidyverse")
-install.packages("rvest")
-install.packages("sf")
+#install.packages("readxl")
+#install.packages("pacman")
+#install.packages("osmdata")
+#install.packages("leaflet")
+#install.packages("dplyr")
+#install.packages("rgeos")
+#install.packages("openxlsx")
+#install.packages("ggplot2")
+#install.packages("writexl")
+#install.packages("geosphere")
+#install.packages("ggmap")
+#install.packages("geopy")
+#install.packages("stargazer")
+#install.packages("zoo")
+#install.packages("gridExtra")
+#install.packages("tidyverse")
+#install.packages("rvest")
+#install.packages("sf")
+
 library(osmdata)
 library(leaflet)
 library(ggplot2)
@@ -52,7 +52,8 @@ p_load(tidyverse, # Manipular dataframes
        tidymodels,
        dplyr) #para modelos de ML
 
-carpeta <- "C:/Output R/Taller 2/Taller_2/stores/"
+#carpeta <- "C:/Output R/Taller 2/Taller_2/stores/"
+carpeta <- "C:/Users/Usuario/Documents/Machine Learning/Taller_2/stores/"
 
 archivos_a_importar <- c("test.csv", "train.csv", "submission_template.csv")
 
@@ -64,7 +65,7 @@ for (archivo in archivos_a_importar) {
   assign(nombre, read.csv(file.path(carpeta, archivo)))
 }
 
-estrato <- read_excel("C:/Output R/Taller 2/Taller_2/stores/estrato.xlsx", sheet = "estrato")
+estrato <- read_excel("C:/Users/Usuario/Documents/Machine Learning/Taller_2/stores/estrato.xlsx", sheet = "estrato")
 
 train %>%
   summarise_all(~sum(is.na(.))) %>% transpose()
@@ -844,8 +845,8 @@ graf_deptos
 grid.arrange(graf_casas, graf_deptos, ncol = 2)
 
 # Establece la ubicación y el nombre del archivo de salida
-Tabla_train1 <- "C:/Output R/Taller 2/Taller_2/Tabla_1.xlsx"  
-write_xlsx(train, Tabla_train1)
+#Tabla_train1 <- "C:/Output R/Taller 2/Taller_2/Tabla_1.xlsx"  
+#write_xlsx(train, Tabla_train1)
 
 
 
@@ -1041,8 +1042,8 @@ train_casas <- train[train$property_type == "Casa", c("property_id","title", "mo
                                                       "Dist_Parques", "Dist_Transmilenio", "Dist_Supermercados", 
                                                       "Dist_C_Comerc", "Dist_Universidades", "Dist_Restaurantes")]
 
-Tabla_train_casas <- "C:/Output R/Taller 2/Taller_2/Tabla_c.xlsx"  
-write_xlsx(train_casas, Tabla_train_casas)
+#Tabla_train_casas <- "C:/Output R/Taller 2/Taller_2/Tabla_c.xlsx"  
+#write_xlsx(train_casas, Tabla_train_casas)
 
 # Imputar los Valores para los Baños
 data_b_b <- train_casas[complete.cases(train_casas[c("Habitaciones", "Baños")]), ]
