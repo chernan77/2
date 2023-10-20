@@ -1731,7 +1731,7 @@ test_apart <- test[train$property_type == "Apartamento", c("property_id","title"
 Tabla_test_apart <- "C:/Output R/Taller 2/Taller_2/Tabla_test_apart.xlsx"  
 write_xlsx(test_apart, Tabla_test_apart)
 
-##---------------------------Elaboración de Modelos para pronosticar el Precio de las Casas------------------##
+##-----------Elaboración de Modelos para pronosticar el Precio de las Casas y Apartamentos-------------------##
 ##-----------------------------------------------------------------------------------------------------------##
 
 #----------------------------------------------- REGRESION LINEAL---------------------------------------------
@@ -1817,14 +1817,15 @@ train_casas1$distancias_bancos <- train_casas1_sf$distancias_bancos
 # -------------------------------CREACION DE OTRAS VARIABLES-------------------------- # 
 train_casas1$M2_por_Habitacion<- train_casas1$Area/train_casas1$Habitaciones
 train_casas1$Habitaciones2<- train_casas1$Habitaciones^2
-train_casas1$M2_por_Habitacion_Garaje <- train_casas1$M2_por_Habitacion * train_casas1$Garaje
 train_casas1$Sala_BBQ_terraza <- train_casas1$Sala_BBQ * train_casas1$Terraza
-train_casas1$Area_Garaje <- train_casas1$Area * train_casas1$Garaje
-
+train_casas1$year <- as.character(train_casas1$year)
+train_casas1$month <- as.character(train_casas1$month)
+train_casas1$Fecha <- as.Date(paste0(train_casas1$year, "-", train_casas1$month, "-01"))
+train_casas1$Fecha <- as.Date(train_casas1$Fecha)
 
 # -------------------------------MODELOS DE REGRESION LINEAL CASAS--------------------------------# 
 
-Model1 <- lm(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje +Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+Model1 <- lm(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
                Dist_Transmilenio + Dist_Supermercados + Dist_C_Comerc + Dist_Universidades + Dist_Restaurantes + distancias_bancos, data = train_casas1)
 Model1_stargazer <- stargazer(Model1, type="text", omit.stat=c("ser","f","adj.rsq"))
 Model1_stargazer <- as.data.frame(Model1_stargazer)
@@ -2032,9 +2033,6 @@ train_apart1$distancias_bancos <- train_apart1_sf$distancias_bancos
 train_apart1$M2_por_Habitacion<- train_apart1$Area/train_apart1$Habitaciones
 train_apart1$Habitaciones2<- train_apart1$Habitaciones^2
 train_apart1$M2_por_Habitacion_Garaje <- train_apart1$M2_por_Habitacion * train_apart1$Garaje
-train_apart1$Sala_BBQ_terraza <- train_apart1$Sala_BBQ * train_apart1$Terraza
-train_apart1$Area_Garaje <- train_apart1$Area * train_apart1$Garaje
-train_apart1$Periodo <- paste(train_apart1$year, train_apart1$month, sep = "-") 
 train_apart1$year <- as.character(train_apart1$year)
 train_apart1$month <- as.character(train_apart1$month)
 train_apart1$Fecha <- as.Date(paste0(train_apart1$year, "-", train_apart1$month, "-01"))
@@ -2043,7 +2041,7 @@ train_apart1$Fecha <- as.Date(train_apart1$Fecha)
 
 # -------------------------------MODELOS DE REGRESION LINEAL APARTAMENTOS----------------------------# 
 
-Model5 <- lm(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + 
+Model5 <- lm(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + M2_por_Habitacion_Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + 
                Dist_Transmilenio + Dist_Supermercados + Dist_C_Comerc + Dist_Universidades + Dist_Restaurantes + distancias_bancos, data = train_apart1)
 Model5_stargazer <- stargazer(Model5, type="text", omit.stat=c("ser","f","adj.rsq"))
 Model5_stargazer <- as.data.frame(Model5_stargazer)
@@ -2084,23 +2082,23 @@ g_ols <- ggplot(lPrecios_combinado1, aes(x = as.Date(paste(Year, Month, "01", se
 g_ols 
 
 
-# -------------------------------MODELOS DE RIDGE Apart--------------------------------# 
+# -------------------------------MODELOS DE RIDGE APARTAMENTO--------------------------------# 
 
-X <- as.matrix(train_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transmilenio", "Dist_Supermercados", "Dist_C_Comerc", "Dist_Universidades", "Dist_Restaurantes", "distancias_bancos")])
+X <- as.matrix(train_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje","M2_por_Habitacion_Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transmilenio", "Dist_Supermercados", "Dist_C_Comerc", "Dist_Universidades", "Dist_Restaurantes", "distancias_bancos")])
 y <- train_apart1$lPrecio
 
-# Ajustar un modelo de regresión Ridge
-ridge_model1 <- glmnet(X, y, alpha = 0)  # alpha = 0 para regresión Ridge
+# Modelo de regresión Ridge
+ridge_model1 <- glmnet(X, y, alpha = 0) 
 dev.new()
 g_mse <- plot(ridge_model1, xvar = "lambda")
 
 # Seleccionar el valor óptimo de lambda
-cv_ridge1 <- cv.glmnet(X, y, alpha = 0)  # alpha = 0 para regresión Ridge
+cv_ridge1 <- cv.glmnet(X, y, alpha = 0) 
 g_coef <- plot(cv_ridge1)
 lambda_opt_apart <- cv_ridge1$lambda.min
 lambda_opt_apart
 
-# Ajustar el modelo con el valor óptimo de lambda
+# Modelo con el valor óptimo de lambda
 Model6 <- glmnet(X, y, alpha = 0, lambda = lambda_opt_apart)
 train_apart1$Pred_Precios_rg1 <- predict(Model6, s = lambda_opt_apart, newx = X)
 coef(Model6)
