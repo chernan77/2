@@ -1776,6 +1776,7 @@ train_apart1 <- data.frame()
 test_casas1 <- data.frame()
 test_apart1 <- data.frame()
 
+
 # Download and read each Excel file
 for (url in excel_urls) {
   temp_file <- tempfile(fileext = ".xlsx")
@@ -2515,4 +2516,378 @@ errores_df <- rbind(errores_df, data.frame(Modelo = "Tree Ranger grid", RMSE = e
 # Imprimir la tabla de errores
 print(errores_df)
 
-#########################Probar las predicciones para Apartamentos ############################################
+################################### PREDICCIÓNES DE LAS CASAS #######################################################
+
+lPrecios_promedio1c <- aggregate(train_casas1$lPrecio, by = list(train_casas1$Fecha), FUN = mean)
+
+fitControl<-trainControl(method ="cv",
+                         number=5)
+
+set.seed(123)
+tree_rpart2c <- train(
+  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+  data = train_casas1,
+  method = "rpart2",
+  trControl = fitControl,
+  tuneGrid = expand.grid(maxdepth = seq(1,30,1))
+)
+tree_rpart2c
+prp(tree_rpart2c$finalModel, under = TRUE, branch.lty = 2, yesno = 2, faclen = 0, varlen=15,tweak=1.2,clip.facs= TRUE,box.palette = "Greens",compress=FALSE,ycompress = FALSE,node.fun=function(x, labs, digits, varlen) paste("Precio \n", format(round(exp(tree_rpart2c$finalModel$frame$yval), 0), nsmall=0, big.mark=",")))
+
+
+train_casas1$Pred_arbol1c <- predict(tree_rpart2c$finalModel, newdata = train_casas1)
+
+lPred_arbol1c <- aggregate(train_casas1$Pred_arbol1c, by = list(train_casas1$Fecha), FUN = mean)
+colnames(lPrecios_promedio1c) <- c("Fecha", "Precio_Promedio_Apart")
+lPred_arbol1c$Tipo <- "Predicción"
+
+
+g_1c <- ggplot() +
+  geom_line(data = lPrecios_promedio1c, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
+  geom_line(data = lPred_arbol1c, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio de Apart Arboles",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) +  
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_1c
+
+
+library(tidymodels)
+
+# Especifica tus datos y fórmula
+#### Costo Complexiting Pruning
+
+set.seed(123)
+tree_lenghtc <- train(
+  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+  data = train_casas1,
+  method = "rpart",
+  metric="MAE",
+  trControl = fitControl,
+  tuneLength=100
+)
+tree_lenghtc
+prp(tree_lenghtc$finalModel, under = TRUE, branch.lty = 2, yesno = 2, faclen = 0, varlen=15,tweak=1.2,clip.facs= TRUE,box.palette = "Greens",compress=FALSE,ycompress = FALSE,node.fun=function(x, labs, digits, varlen) paste("Precio \n", format(round(exp(tree_lenghtc$finalModel$frame$yval), 0), nsmall=0, big.mark=",")))
+
+
+train_casas1$Pred_arbol2c <- predict(tree_lenghtc$finalModel, newdata = train_casas1)
+
+lPred_arbol2c <- aggregate(train_casas1$Pred_arbol2c, by = list(train_casas1$Fecha), FUN = mean)
+colnames(lPred_arbol2c) <- c("Fecha", "Precio_Promedio_Apart")
+lPred_arbol2c$Tipo <- "Predicción"
+
+
+g_2c <- ggplot() +
+  geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
+  geom_line(data = lPred_arbol2c, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio de Apart Arboles",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) +  
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_2c
+
+set.seed(123)
+tree_gridc <- train(
+  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+  data = train_casas1,
+  method = "rpart",
+  trControl = fitControl,
+  tuneGrid = expand.grid(cp = seq(0.001707763, 0.001707765, length.out = 100))
+)
+prp(tree_gridc$finalModel, under = TRUE, branch.lty = 2, yesno = 2, faclen = 0, varlen=15,tweak=1.2,clip.facs= TRUE,box.palette = "Greens",compress=FALSE,ycompress = FALSE,node.fun=function(x, labs, digits, varlen) paste("Precio \n", format(round(exp(tree_gridc$finalModel$frame$yval), 0), nsmall=0, big.mark=",")))
+
+train_casas1$Pred_arbol3c <- predict(tree_gridc$finalModel, newdata = train_casas1)
+
+lPred_arbol3c <- aggregate(train_casas1$Pred_arbol3c, by = list(train_casas1$Fecha), FUN = mean)
+colnames(lPred_arbol3c) <- c("Fecha", "Precio_Promedio_Apart")
+lPred_arbol3c$Tipo <- "Predicción"
+
+g_3c<- ggplot() +
+  geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
+  geom_line(data = lPred_arbol3c, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio de Apart Arboles",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) +  
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_3c
+
+####Error Cuadratico de Predición 
+
+set.seed(123)
+tree_rpart2_robc <- train(
+  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+  data = train_casas1[-c(1:20),],
+  method = "rpart2",
+  trControl = fitControl,
+  tuneGrid = expand.grid(maxdepth = seq(1,30,1))
+)
+tree_rpart2_robc
+prp(tree_rpart2_robc$finalModel, under = TRUE, branch.lty = 2, yesno = 2, faclen = 0, varlen=15,tweak=1.2,clip.facs= TRUE,box.palette = "Greens",compress=FALSE,ycompress = FALSE,node.fun=function(x, labs, digits, varlen) paste("Precio \n", format(round(exp(tree_rpart2_robc$finalModel$frame$yval), 0), nsmall=0, big.mark=",")))
+
+
+train_casas1$Pred_arbol4c <- predict(tree_rpart2_robc$finalModel, newdata = train_casas1)
+
+lPred_arbol4c <- aggregate(train_casas1$Pred_arbol4c, by = list(train_casas1$Fecha), FUN = mean)
+colnames(lPred_arbol4c) <- c("Fecha", "Precio_Promedio_Apart")
+lPred_arbol4c$Tipo <- "Predicción"
+
+g_4c <- ggplot() +
+  geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
+  geom_line(data = lPred_arbol4c, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio de Apart Arboles",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) +  
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_4c
+
+# Change the sample
+db_sample<- sample_frac(train_casas1,size=1,replace=TRUE) #takes a sample with replacement of the same size of the original sample (1 or 100%)
+set.seed(123)
+tree_rpart2_rob_samplec <- train(
+  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+  data = train_casas1,
+  method = "rpart2",
+  trControl = fitControl,
+  tuneGrid = expand.grid(maxdepth = seq(1,30,1))
+)
+
+prp(tree_rpart2_rob_samplec$finalModel, under = TRUE, branch.lty = 2, yesno = 2, faclen = 0, varlen=15,tweak=1.2,clip.facs= TRUE,box.palette = "Greens",compress=FALSE,ycompress = FALSE,node.fun=function(x, labs, digits, varlen) paste("Precio \n", format(round(exp(tree_rpart2_rob_samplec$finalModel$frame$yval), 0), nsmall=0, big.mark=",")))
+
+
+train_casas1$Pred_arbol5c <- predict(tree_rpart2_rob_samplec$finalModel, newdata = train_casas1)
+
+lPred_arbol5c <- aggregate(train_casas1$Pred_arbol5c, by = list(train_casas1$Fecha), FUN = mean)
+colnames(lPred_arbol5c) <- c("Fecha", "Precio_Promedio_Apart")
+lPred_arbol5c$Tipo <- "Predicción"
+
+g_5c <- ggplot() +
+  geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
+  geom_line(data = lPred_arbol5c, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio de Apart Arboles",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) +  
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_5c
+
+
+
+######  RAMDOM FOREST
+p_load("ranger")
+p_load("randomForest")
+
+set.seed(123)
+
+tree_rangerc <- train(
+  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+  data = train_casas1,
+  method = "ranger",
+  trControl = fitControl,
+  tuneGrid=expand.grid(
+    mtry = 1,
+    splitrule = "variance",
+    min.node.size = 5)
+)
+tree_rangerc
+
+train_casas1$Pred_rangerc <- predict(tree_rangerc, newdata = train_casas1)
+
+lPred_rangerc <- aggregate(train_casas1$Pred_rangerc, by = list(train_casas1$Fecha), FUN = mean)
+colnames(lPred_rangerc) <- c("Fecha", "Precio_Promedio_Apart")
+lPred_rangerc$Tipo <- "Predicción (ranger)"
+
+g_6c <- ggplot() +
+  geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
+  geom_line(data = lPred_rangerc, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio de Apart Arboles",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) +  
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_6c
+
+set.seed(123)
+
+tree_ranger_gridc <- train(
+  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+  data = train_casas1,
+  method = "ranger",
+  trControl = fitControl,
+  tuneGrid=expand.grid(
+    mtry = c(1,2,3),
+    splitrule = "variance",
+    min.node.size = c(5,10,15))
+)
+
+tree_ranger_gridc
+
+train_casas1$Pred_ranger_gridc <- predict(tree_ranger_gridc, newdata = train_casas1)
+
+lPred_ranger_gridc <- aggregate(train_casas1$Pred_ranger_grid , by = list(train_casas1$Fecha), FUN = mean)
+colnames(lPred_ranger_gridc ) <- c("Fecha", "Precio_Promedio_Apart")
+lPred_ranger_gridc $Tipo <- "Predicción (ranger_grid)"
+
+g_7c <- ggplot() +
+  geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
+  geom_line(data = lPred_ranger_gridc, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio de Apart Arboles",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) +  
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_7c
+
+#Errores de Predicción 
+# Crear un dataframe para almacenar los errores de los modelos
+errores_df <- data.frame(Modelo = character(0), RMSE = numeric(0), MAE = numeric(0))
+
+# Modelo 1 - Arboles con tuneGrid
+error_modelo1 <- sqrt(mean((train_apart1$lPrecio - train_apart1$Pred_arbol1)^2))
+errores_df <- rbind(errores_df, data.frame(Modelo = "Arboles con tuneGrid", RMSE = error_modelo1, MAE = mean(abs(train_apart1$lPrecio - train_apart1$Pred_arbol1))))
+
+# Modelo 2 - Arboles con tuneLength
+error_modelo2 <- sqrt(mean((train_apart1$lPrecio - train_apart1$Pred_arbol2)^2))
+errores_df <- rbind(errores_df, data.frame(Modelo = "Arboles con tuneLength", RMSE = error_modelo2, MAE = mean(abs(train_apart1$lPrecio - train_apart1$Pred_arbol2))))
+
+# Modelo 3 - Arboles con tuneGrid y cp
+error_modelo3 <- sqrt(mean((train_apart1$lPrecio - train_apart1$Pred_arbol3)^2))
+errores_df <- rbind(errores_df, data.frame(Modelo = "Arboles con tuneGrid y cp", RMSE = error_modelo3, MAE = mean(abs(train_apart1$lPrecio - train_apart1$Pred_arbol3))))
+
+
+# Modelo 4 - Arboles con tuneGrid y cp
+error_modelo4 <- sqrt(mean((train_apart1$lPrecio - train_apart1$Pred_arbol4)^2))
+errores_df <- rbind(errores_df, data.frame(Modelo = "Arboles con Samples", RMSE = error_modelo4, MAE = mean(abs(train_apart1$lPrecio - train_apart1$Pred_arbol4))))
+
+# Modelo 5 - Arboles con tuneGrid y cp
+error_modelo5 <- sqrt(mean((train_apart1$lPrecio - train_apart1$Pred_arbol5)^2))
+errores_df <- rbind(errores_df, data.frame(Modelo = "Arboles con Resamples", RMSE = error_modelo5, MAE = mean(abs(train_apart1$lPrecio - train_apart1$Pred_arbol5))))
+
+# Modelo6 - Arboles con tuneGrid y cp
+error_modelo6 <- sqrt(mean((train_apart1$lPrecio - train_apart1$Pred_ranger)^2))
+errores_df <- rbind(errores_df, data.frame(Modelo = "Tree Ranger", RMSE = error_modelo6, MAE = mean(abs(train_apart1$lPrecio - train_apart1$Pred_ranger))))
+
+# Modelo7 - Arboles con tuneGrid y cp
+error_modelo7 <- sqrt(mean((train_apart1$lPrecio - train_apart1$Pred_ranger_grid )^2))
+errores_df <- rbind(errores_df, data.frame(Modelo = "Tree Ranger grid", RMSE = error_modelo7, MAE = mean(abs(train_apart1$lPrecio -train_apart1$Pred_ranger_grid))))
+
+# Imprimir la tabla de errores
+print(errores_df)
+
+
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA-------------------------------# 
+
+# -------------------------------CREACION DE OTRAS VARIABLES CASAS-------------------------# 
+
+test_casas1$Habitaciones2 <- test_casas1$Habitaciones^2
+test_casas1$M2_por_Habitacion_Garaje <- test_casas1$M2_por_Habitacion * test_casas1$Garaje
+test_casas1$Sala_BBQ_terraza <- test_casas1$Sala_BBQ * test_casas1$Terraza
+test_casas1$year <- as.character(test_casas1$year)
+test_casas1$month <- as.character(test_casas1$month)
+test_casas1$Fecha <- as.Date(paste0(test_casas1$year, "-", test_casas1$month, "-01"))
+test_casas1$Fecha <- as.Date(test_casas1$Fecha)
+
+#test_casas1_1 <- "C:/Output R/Taller 2/Taller_2/tabla_train_apart.xlsx"  
+#write_xlsx(test_casas1, tabla_train_apart)
+
+# -------------------------------CREACION DE OTRAS VARIABLES CASAS-------------------------# 
+
+test_apart1$Habitaciones2 <- test_apart1$Habitaciones^2
+test_apart1$M2_por_Habitacion_Garaje <- test_apart1$M2_por_Habitacion * test_apart1$Garaje
+test_apart1$Sala_BBQ_terraza <- test_apart1$Sala_BBQ * test_apart1$Terraza
+test_apart1$year <- as.character(test_apart1$year)
+test_apart1$month <- as.character(test_apart1$month)
+test_apart1$Fecha <- as.Date(paste0(test_apart1$year, "-", test_apart1$month, "-01"))
+test_apart1$Fecha <- as.Date(test_apart1$Fecha)
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA OLS-------------------------------# 
+
+Pred_casas_ols <- exp(predict(Model1, newdata = test_casas1))
+Pred_apart_ols <- exp(predict(Model5, newdata = test_apart1))
+submission_template$Pred_ols_fm <- c(Pred_casas_ols, Pred_apart_ols)
+
+######################################## Predicciones Casas #####################################################
+
+
+
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA RIDGE-----------------------------# 
+
+Xc_test <- as.matrix(test_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje","M2_por_Habitacion_Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+Xa_test <- as.matrix(test_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje","M2_por_Habitacion_Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+
+
+Pred_apart_arb1 <- exp(predict(tree_rpart2, newx = Xa_test))
+submission_template$Pred_rg_fm <- c(Pred_apart_arb1)
+
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos.xlsx"  
+#write_xlsx(submission_template, tabla_pronost)
+
+
