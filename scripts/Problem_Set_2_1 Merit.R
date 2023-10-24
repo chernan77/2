@@ -1742,6 +1742,9 @@ test_apart <- test[train$property_type == "Apartamento", c("property_id","title"
 ##-----------Elaboración de Modelos para pronosticar el Precio de las Casas y Apartamentos-------------------##
 ##-----------------------------------------------------------------------------------------------------------##
 
+##-----------Elaboración de Modelos para pronosticar el Precio de las Casas y Apartamentos-------------------##
+##-----------------------------------------------------------------------------------------------------------##
+
 #----------------------------------------------- REGRESION LINEAL---------------------------------------------
 
 library(readxl)
@@ -1792,39 +1795,10 @@ for (url in excel_urls) {
   file.remove(temp_file)
 }
 
-
-##-----------------------DISTANCIA INSTITUCIONES FINANCIERAS CASAS----------------------------------##
-
-# Define la ubicación de interés
-ubicacion <- "Bogotá, Colombia"
-
-# Obtener los límites geográficos (BBOX) de la ubicación
-bbox_bogota <- getbb(ubicacion)
-
-# Definir la ubicación de interés y buscar instituciones financieras
-bancos <- opq(bbox = bbox_bogota) %>%
-  add_osm_feature(key = "amenity", value = "bank")
-
-bancos_sf <- osmdata_sf(bancos)
-bancos_geometria <- bancos_sf$osm_polygons %>%
-  select(osm_id, name)
-
-centroides_bancos <- st_centroid(bancos_geometria)
-
-# Encontrar el centro del mapa
-latitud_central <- mean(bbox_bogota["lat"])
-longitud_central <- mean(bbox_bogota["lon"])
-
-train_casas1_sf <- st_as_sf(train_casas1, coords = c("lon", "lat"), crs = 4326)
-centroides_bancos_sf <- st_as_sf(centroides_bancos, coords = c("x", "y"), crs = 4326)
-distancias_bancos <- st_distance(train_casas1_sf, centroides_bancos_sf)
-dist_min_bancos <- apply(distancias_bancos, 1, min)
-train_casas1_sf$distancias_bancos <- dist_min_bancos
-train_casas1$distancias_bancos <- train_casas1_sf$distancias_bancos
-
 # -------------------------------CREACION DE OTRAS VARIABLES-------------------------- # 
 train_casas1$M2_por_Habitacion<- train_casas1$Area/train_casas1$Habitaciones
-train_casas1$Habitaciones2<- train_casas1$Habitaciones^2
+train_casas1$Habitaciones2 <- train_casas1$Habitaciones^2
+train_casas1$M2_por_Habitacion_Garaje <- train_casas1$M2_por_Habitacion * train_casas1$Garaje
 train_casas1$Sala_BBQ_terraza <- train_casas1$Sala_BBQ * train_casas1$Terraza
 train_casas1$year <- as.character(train_casas1$year)
 train_casas1$month <- as.character(train_casas1$month)
@@ -1834,7 +1808,7 @@ train_casas1$Fecha <- as.Date(train_casas1$Fecha)
 # -------------------------------MODELOS DE REGRESION LINEAL CASAS--------------------------------# 
 
 Model1 <- lm(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
-               Dist_Transmilenio + Dist_Supermercados + Dist_C_Comerc + Dist_Universidades + Dist_Restaurantes + distancias_bancos, data = train_casas1)
+               Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_casas1)
 Model1_stargazer <- stargazer(Model1, type="text", omit.stat=c("ser","f","adj.rsq"))
 Model1_stargazer <- as.data.frame(Model1_stargazer)
 train_casas1$Pred_Precios <- predict(Model1, newdata = train_casas1)
@@ -1861,6 +1835,7 @@ g_ols <- ggplot(lPrecios_combinado, aes(x = as.Date(paste(Year, Month, "01", sep
     y = "Precio Promedio"
   ) +
   scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) +
   theme(
     plot.title = element_text(hjust = 0.5),
     axis.line = element_line(color = "gray"),
@@ -1872,7 +1847,7 @@ g_ols
 
 # -------------------------------MODELOS DE RIDGE CASAS--------------------------------# 
 
-X <- as.matrix(train_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Sala_BBQ_terraza", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transmilenio", "Dist_Supermercados", "Dist_C_Comerc", "Dist_Universidades", "Dist_Restaurantes", "distancias_bancos")])
+X <- as.matrix(train_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Sala_BBQ_terraza", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
 y <- train_casas1$lPrecio
 
 # Ajustar un modelo de regresión Ridge
@@ -1910,6 +1885,7 @@ g_rd <- ggplot(lPrecios_combinado_rd, aes(x = as.Date(paste(Year, Month, "01", s
     y = "Precio Promedio"
   ) +
   scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) +
   theme(
     plot.title = element_text(hjust = 0.5),
     axis.line = element_line(color = "gray"),
@@ -1956,6 +1932,7 @@ g_ls <- ggplot(lPrecios_combinado_ls, aes(x = as.Date(paste(Year, Month, "01", s
     y = "Precio Promedio"
   ) +
   scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) +
   theme(
     plot.title = element_text(hjust = 0.5),
     axis.line = element_line(color = "gray"),
@@ -1999,6 +1976,7 @@ g_en <- ggplot(lPrecios_combinado_en, aes(x = as.Date(paste(Year, Month, "01", s
     y = "Precio Promedio"
   ) +
   scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) +
   theme(
     plot.title = element_text(hjust = 0.5),
     axis.line = element_line(color = "gray"),
@@ -2007,40 +1985,16 @@ g_en <- ggplot(lPrecios_combinado_en, aes(x = as.Date(paste(Year, Month, "01", s
   )
 g_en
 
-##-----------------------DISTANCIA INSTITUCIONES FINANCIERAS APARTAMENTOS----------------------------------##
 
-# Define la ubicación de interés
-ubicacion <- "Bogotá, Colombia"
-
-# Obtener los límites geográficos (BBOX) de la ubicación
-bbox_bogota <- getbb(ubicacion)
-
-# Definir la ubicación de interés y buscar instituciones financieras
-bancos <- opq(bbox = bbox_bogota) %>%
-  add_osm_feature(key = "amenity", value = "bank")
-
-bancos_sf <- osmdata_sf(bancos)
-bancos_geometria <- bancos_sf$osm_polygons %>%
-  select(osm_id, name)
-
-centroides_bancos <- st_centroid(bancos_geometria)
-
-# Encontrar el centro del mapa
-latitud_central <- mean(bbox_bogota["lat"])
-longitud_central <- mean(bbox_bogota["lon"])
-
-train_apart1_sf <- st_as_sf(train_apart1, coords = c("lon", "lat"), crs = 4326)
-centroides_bancos_sf <- st_as_sf(centroides_bancos, coords = c("x", "y"), crs = 4326)
-distancias_bancos <- st_distance(train_apart1_sf, centroides_bancos_sf)
-dist_min_bancos <- apply(distancias_bancos, 1, min)
-train_apart1_sf$distancias_bancos <- dist_min_bancos
-train_apart1$distancias_bancos <- train_apart1_sf$distancias_bancos
+#Tabla_train_casas <- "C:/Output R/Taller 2/Taller_2/tabla_train_casas.xlsx"  
+#write_xlsx(train_casas1, Tabla_train_casas)
 
 
 # -------------------------------CREACION DE OTRAS VARIABLES-------------------------- # 
 train_apart1$M2_por_Habitacion<- train_apart1$Area/train_apart1$Habitaciones
 train_apart1$Habitaciones2<- train_apart1$Habitaciones^2
 train_apart1$M2_por_Habitacion_Garaje <- train_apart1$M2_por_Habitacion * train_apart1$Garaje
+train_apart1$Sala_BBQ_terraza <- train_apart1$Sala_BBQ * train_apart1$Terraza
 train_apart1$year <- as.character(train_apart1$year)
 train_apart1$month <- as.character(train_apart1$month)
 train_apart1$Fecha <- as.Date(paste0(train_apart1$year, "-", train_apart1$month, "-01"))
@@ -2050,49 +2004,41 @@ train_apart1$Fecha <- as.Date(train_apart1$Fecha)
 # -------------------------------MODELOS DE REGRESION LINEAL APARTAMENTOS----------------------------# 
 
 Model5 <- lm(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + M2_por_Habitacion_Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + 
-               Dist_Transmilenio + Dist_Supermercados + Dist_C_Comerc + Dist_Universidades + Dist_Restaurantes + distancias_bancos, data = train_apart1)
+               Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_apart1)
 Model5_stargazer <- stargazer(Model5, type="text", omit.stat=c("ser","f","adj.rsq"))
 Model5_stargazer <- as.data.frame(Model5_stargazer)
 train_apart1$Pred_Precios1 <- predict(Model5, newdata = train_apart1)
 
+lPrecios_promedio1 <- aggregate(train_apart1$lPrecio, by = list(train_apart1$Fecha), FUN = mean)
+colnames(lPrecios_promedio1) <- c("Fecha", "Precio_Promedio_Apart")
+lPrecios_promedio1$Tipo <- "Observado"
 
-# Promedio de los precios observados
-lPrecios_promedio1 <- aggregate(train_apart1$lPrecio, by = list(train_apart1$year, train_apart1$month), FUN = mean)
-colnames(lPrecios_promedio1) <- c("Year", "Month", "Precio_Promedio_apart")
-lPrecios_promedio1
-
-# Promedio de las predicciones
-lPrecios_promedio_pred1 <- aggregate(train_apart1$Pred_Precios1, by = list(train_apart1$year, train_apart1$month), FUN = mean)
-colnames(lPrecios_promedio_pred1) <- c("Year", "Month", "Precio_Promedio_apart")
+lPrecios_promedio_pred1 <- aggregate(train_apart1$Pred_Precios1, by = list(train_apart1$Fecha), FUN = mean)
+colnames(lPrecios_promedio_pred1) <- c("Fecha", "Precio_Promedio_Apart")
+lPrecios_promedio_pred1$Tipo <- "Predicción"
 lPrecios_promedio_pred1
 
-# Crear un único conjunto de datos con las dos series de tiempo
-lPrecios_combinado1 <- rbind(
-  data.frame(Year = lPrecios_promedio1$Year, Month = lPrecios_promedio1$Month, Precio_Promedio = lPrecios_promedio1$Precio_Promedio_apart, Tipo = "Observado"),
-  data.frame(Year = lPrecios_promedio_pred1$Year, Month = lPrecios_promedio_pred1$Month, Precio_Promedio = lPrecios_promedio_pred1$Precio_Promedio_apart, Tipo = "Predicción")
-)
-
-# Crear un gráfico de línea con ambas series
-g_ols <- ggplot(lPrecios_combinado1, aes(x = as.Date(paste(Year, Month, "01", sep = "-")), y = Precio_Promedio, color = Tipo)) +
-  geom_line(linewidth = 1.5) +
+g_ols <- ggplot() +
+  geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
+  geom_line(data = lPrecios_promedio_pred1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
   labs(
     title = "Evolución Precios Promedio de Apart OLS",
     x = "Fecha",
     y = "Precio Promedio"
   ) +
   scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
   theme(
     plot.title = element_text(hjust = 0.5),
     axis.line = element_line(color = "gray"),
     panel.background = element_rect(fill = "transparent", color = NA),
     panel.grid = element_line(color = "gray")
   )
-g_ols 
-
+g_ols
 
 # -------------------------------MODELOS DE RIDGE APARTAMENTO--------------------------------# 
 
-X <- as.matrix(train_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje","M2_por_Habitacion_Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transmilenio", "Dist_Supermercados", "Dist_C_Comerc", "Dist_Universidades", "Dist_Restaurantes", "distancias_bancos")])
+X <- as.matrix(train_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje","M2_por_Habitacion_Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
 y <- train_apart1$lPrecio
 
 # Modelo de regresión Ridge
@@ -2111,33 +2057,31 @@ Model6 <- glmnet(X, y, alpha = 0, lambda = lambda_opt_apart)
 train_apart1$Pred_Precios_rg1 <- predict(Model6, s = lambda_opt_apart, newx = X)
 coef(Model6)
 
-# Calcular el promedio de las predicciones
-lPrecios_promedio_pred_rg1 <- aggregate(train_apart1$Pred_Precios_rg1, by = list(train_apart1$year, train_apart1$month), FUN = mean)
-colnames(lPrecios_promedio_pred_rg1) <- c("Year", "Month", "Precio_Promedio_apart")
-lPrecios_promedio_pred_rg1
 
-# Crear un único conjunto de datos con las dos series de tiempo
-lPrecios_combinado_rd1 <- rbind(
-  data.frame(Year = lPrecios_promedio1$Year, Month = lPrecios_promedio1$Month, Precio_Promedio = lPrecios_promedio1$Precio_Promedio_apart, Tipo = "Observado"),
-  data.frame(Year = lPrecios_promedio_pred_rg1$Year, Month = lPrecios_promedio_pred_rg1$Month, Precio_Promedio = lPrecios_promedio_pred_rg1$Precio_Promedio_apart, Tipo = "Predicción")
-)
+lPrecios_promedio_pred_rg1 <- aggregate(train_apart1$Pred_Precios_rg1, by = list(train_apart1$Fecha), FUN = mean)
+colnames(lPrecios_promedio_pred_rg1) <- c("Fecha", "Precio_Promedio_Apart")
+lPrecios_promedio_pred_rg1$Tipo <- "Predicción"
 
-# Crear un gráfico de línea con ambas series
-g_rd <- ggplot(lPrecios_combinado_rd1, aes(x = as.Date(paste(Year, Month, "01", sep = "-")), y = Precio_Promedio, color = Tipo)) +
-  geom_line(linewidth = 1.5) +
+
+
+g_rg <- ggplot() +
+  geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
+  geom_line(data = lPrecios_promedio_pred_rg1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
   labs(
     title = "Evolución Precios Promedio de Apart Ridge",
     x = "Fecha",
     y = "Precio Promedio"
   ) +
   scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
   theme(
     plot.title = element_text(hjust = 0.5),
     axis.line = element_line(color = "gray"),
     panel.background = element_rect(fill = "transparent", color = NA),
     panel.grid = element_line(color = "gray")
   )
-g_rd
+g_rg
+
 
 
 # -------------------------------MODELOS LASSO APARTAMENTO--------------------------------# 
@@ -2232,27 +2176,11 @@ g_ls
 
 #tabla_train_apart <- "C:/Output R/Taller 2/Taller_2/tabla_train_apart.xlsx"  
 #write_xlsx(train_apart1, tabla_train_apart)
-#--------------------------------------ARBOLES-----------------------------------------------------------------
+#--------------------------------------ARBOLES---------------------------------------------------------------------#
 #remove.packages("rpart")
 #install.packages("rpart")
 #remove.packages("ipred")
 #library(rpart)
-train_apart1 <- train_apart1 %>%
-  mutate(lPrecio = log(Precio))
-
-arbol<-rpart(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + M2_por_Habitacion_Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + 
-               Dist_Transmilenio + Dist_Supermercados + Dist_C_Comerc + Dist_Universidades + Dist_Restaurantes + distancias_bancos, data = train_apart1, control = list(maxdepth = 14))
-
-p_load("rpart.plot")
-prp(arbol, under = TRUE, branch.lty = 2, yesno = 2, faclen = 0, varlen=15,tweak=1.2,clip.facs= TRUE,box.palette = "Greens",compress=FALSE,ycompress = FALSE,node.fun=function(x, labs, digits, varlen) paste("Precio \n", format(round(exp(arbol$frame$yval), 0), nsmall=0, big.mark=",")))
-
-#### Otro modelo
-arbol1<-rpart(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + M2_por_Habitacion_Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + 
-                  Dist_Transmilenio + Dist_Supermercados + Dist_C_Comerc + Dist_Universidades + Dist_Restaurantes + distancias_bancos, data = train_apart1,cp=-1)
-
-p_load("rpart.plot")
-prp(arbol1, under = TRUE, branch.lty = 2, yesno = 2, faclen = 0, varlen=15,tweak=1.2,clip.facs= TRUE,box.palette = "Greens",compress=FALSE,ycompress = FALSE,node.fun=function(x, labs, digits, varlen) paste("Precio \n", format(round(exp(arbol1$frame$yval), 0), nsmall=0, big.mark=",")))
-
 ###
 # Instala y carga el paquete "rpart.plot"
 # install.packages("rpart.plot")
@@ -2261,18 +2189,19 @@ prp(arbol1, under = TRUE, branch.lty = 2, yesno = 2, faclen = 0, varlen=15,tweak
 # library(rpart.plot)
 # Instala y carga la biblioteca "caret"
 
-install.packages("ipred")
-library(ipred)
-install.packages("caret")
-library(caret)
+#install.packages("ipred")
+#library(ipred)
+#install.packages("caret")
+#library(caret)
 
+##################################### Apartamentos#############################################################
 fitControl<-trainControl(method ="cv",
                          number=5)
 
 set.seed(123)
 tree_rpart2 <- train(
-  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + M2_por_Habitacion_Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + 
-    Dist_Transmilenio + Dist_Supermercados + Dist_C_Comerc + Dist_Universidades + Dist_Restaurantes + distancias_bancos, 
+  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
   data = train_apart1,
   method = "rpart2",
   trControl = fitControl,
@@ -2289,7 +2218,7 @@ colnames(lPred_arbol1) <- c("Fecha", "Precio_Promedio_Apart")
 lPred_arbol1$Tipo <- "Predicción"
 
 
-g_ls <- ggplot() +
+g_1 <- ggplot() +
   geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
   geom_line(data = lPred_arbol1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
   labs(
@@ -2305,7 +2234,7 @@ g_ls <- ggplot() +
     panel.background = element_rect(fill = "transparent", color = NA),
     panel.grid = element_line(color = "gray")
   )
-g_ls
+g_1
 
 
 library(tidymodels)
@@ -2315,8 +2244,8 @@ library(tidymodels)
 
 set.seed(123)
 tree_lenght <- train(
-  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + M2_por_Habitacion_Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + 
-    Dist_Transmilenio + Dist_Supermercados + Dist_C_Comerc + Dist_Universidades + Dist_Restaurantes + distancias_bancos, 
+  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
   data = train_apart1,
   method = "rpart",
   metric="MAE",
@@ -2334,7 +2263,7 @@ colnames(lPred_arbol2) <- c("Fecha", "Precio_Promedio_Apart")
 lPred_arbol2$Tipo <- "Predicción"
 
 
-g_ls <- ggplot() +
+g_2 <- ggplot() +
   geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
   geom_line(data = lPred_arbol2, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
   labs(
@@ -2350,12 +2279,12 @@ g_ls <- ggplot() +
     panel.background = element_rect(fill = "transparent", color = NA),
     panel.grid = element_line(color = "gray")
   )
-g_ls
+g_2
 
 set.seed(123)
 tree_grid <- train(
-  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + M2_por_Habitacion_Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + 
-    Dist_Transmilenio + Dist_Supermercados + Dist_C_Comerc + Dist_Universidades + Dist_Restaurantes + distancias_bancos, 
+  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
   data = train_apart1,
   method = "rpart",
   trControl = fitControl,
@@ -2369,7 +2298,7 @@ lPred_arbol3 <- aggregate(train_apart1$Pred_arbol3, by = list(train_apart1$Fecha
 colnames(lPred_arbol3) <- c("Fecha", "Precio_Promedio_Apart")
 lPred_arbol3$Tipo <- "Predicción"
 
-g_ls <- ggplot() +
+g_3<- ggplot() +
   geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
   geom_line(data = lPred_arbol3, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
   labs(
@@ -2385,14 +2314,14 @@ g_ls <- ggplot() +
     panel.background = element_rect(fill = "transparent", color = NA),
     panel.grid = element_line(color = "gray")
   )
-g_ls
+g_3
 
 ####Error Cuadratico de Predición 
 
 set.seed(123)
 tree_rpart2_rob <- train(
-  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + M2_por_Habitacion_Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + 
-    Dist_Transmilenio + Dist_Supermercados + Dist_C_Comerc + Dist_Universidades + Dist_Restaurantes + distancias_bancos, 
+  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
   data = train_apart1[-c(1:20),],
   method = "rpart2",
   trControl = fitControl,
@@ -2408,7 +2337,7 @@ lPred_arbol4 <- aggregate(train_apart1$Pred_arbol4, by = list(train_apart1$Fecha
 colnames(lPred_arbol4) <- c("Fecha", "Precio_Promedio_Apart")
 lPred_arbol4$Tipo <- "Predicción"
 
-g_ls <- ggplot() +
+g_4 <- ggplot() +
   geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
   geom_line(data = lPred_arbol4, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
   labs(
@@ -2424,14 +2353,14 @@ g_ls <- ggplot() +
     panel.background = element_rect(fill = "transparent", color = NA),
     panel.grid = element_line(color = "gray")
   )
-g_ls
+g_4
 
 # Change the sample
 db_sample<- sample_frac(train_apart1,size=1,replace=TRUE) #takes a sample with replacement of the same size of the original sample (1 or 100%)
 set.seed(123)
 tree_rpart2_rob_sample <- train(
-  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + M2_por_Habitacion_Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + 
-    Dist_Transmilenio + Dist_Supermercados + Dist_C_Comerc + Dist_Universidades + Dist_Restaurantes + distancias_bancos, 
+  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
   data = train_apart1,
   method = "rpart2",
   trControl = fitControl,
@@ -2447,7 +2376,7 @@ lPred_arbol5 <- aggregate(train_apart1$Pred_arbol5, by = list(train_apart1$Fecha
 colnames(lPred_arbol5) <- c("Fecha", "Precio_Promedio_Apart")
 lPred_arbol5$Tipo <- "Predicción"
 
-g_ls <- ggplot() +
+g_5 <- ggplot() +
   geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
   geom_line(data = lPred_arbol5, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
   labs(
@@ -2463,7 +2392,7 @@ g_ls <- ggplot() +
     panel.background = element_rect(fill = "transparent", color = NA),
     panel.grid = element_line(color = "gray")
   )
-g_ls
+g_5
 
 
 
@@ -2474,8 +2403,8 @@ p_load("randomForest")
 set.seed(123)
 
 tree_ranger <- train(
-  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + M2_por_Habitacion_Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + 
-    Dist_Transmilenio + Dist_Supermercados + Dist_C_Comerc + Dist_Universidades + Dist_Restaurantes + distancias_bancos, 
+  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
   data = train_apart1,
   method = "ranger",
   trControl = fitControl,
@@ -2492,7 +2421,7 @@ lPred_ranger <- aggregate(train_apart1$Pred_ranger, by = list(train_apart1$Fecha
 colnames(lPred_ranger) <- c("Fecha", "Precio_Promedio_Apart")
 lPred_ranger$Tipo <- "Predicción (ranger)"
 
-g_ls <- ggplot() +
+g_6 <- ggplot() +
   geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
   geom_line(data = lPred_ranger, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
   labs(
@@ -2508,13 +2437,13 @@ g_ls <- ggplot() +
     panel.background = element_rect(fill = "transparent", color = NA),
     panel.grid = element_line(color = "gray")
   )
-g_ls
+g_6
 
 set.seed(123)
 
 tree_ranger_grid <- train(
-  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + M2_por_Habitacion_Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + 
-    Dist_Transmilenio + Dist_Supermercados + Dist_C_Comerc + Dist_Universidades + Dist_Restaurantes + distancias_bancos, 
+  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
   data = train_apart1,
   method = "ranger",
   trControl = fitControl,
@@ -2532,7 +2461,7 @@ lPred_ranger_grid <- aggregate(train_apart1$Pred_ranger_grid , by = list(train_a
 colnames(lPred_ranger_grid ) <- c("Fecha", "Precio_Promedio_Apart")
 lPred_ranger_grid $Tipo <- "Predicción (ranger_grid)"
 
-g_ls <- ggplot() +
+g_7 <- ggplot() +
   geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
   geom_line(data = lPred_ranger_grid, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
   labs(
@@ -2548,99 +2477,7 @@ g_ls <- ggplot() +
     panel.background = element_rect(fill = "transparent", color = NA),
     panel.grid = element_line(color = "gray")
   )
-g_ls
-
-###########------------------------------------Boosting---------------------------------------------------------
-
-set.seed(123)
-p_load("bst")
-
-tree_boosted <- train(
-  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + M2_por_Habitacion_Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + 
-    Dist_Transmilenio + Dist_Supermercados + Dist_C_Comerc + Dist_Universidades + Dist_Restaurantes + distancias_bancos, 
-  data = train_apart1,
-  method = "bstTree",
-  trControl = fitControl,
-  tuneGrid=expand.grid(
-    mstop = c(400,500,600), #Boosting Iterations (M)
-    maxdepth = c(1,2,3), # Max Tree Depth (d)
-    nu = c(0.01,0.001)) # Shrinkage (lambda)
-)
-tree_boosted
-
-train_apart1$Pred_tree_boosted <- predict(tree_boosted, newdata = train_apart1)
-
-lPred_tree_boosted <- aggregate(train_apart1$Pred_tree_boosted , by = list(train_apart1$Fecha), FUN = mean)
-colnames(lPred_tree_boosted ) <- c("Fecha", "Precio_Promedio_Apart")
-lPred_tree_boosted$Tipo <- "Predicción (ranger_grid)"
-
-g_ls <- ggplot() +
-  geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
-  geom_line(data = lPred_tree_boosted, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
-  labs(
-    title = "Evolución Precios Promedio de Apart Arboles",
-    x = "Fecha",
-    y = "Precio Promedio"
-  ) +
-  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
-  guides(color = guide_legend(title = NULL)) +  
-  theme(
-    plot.title = element_text(hjust = 0.5),
-    axis.line = element_line(color = "gray"),
-    panel.background = element_rect(fill = "transparent", color = NA),
-    panel.grid = element_line(color = "gray")
-  )
-g_ls
-
-
-################################################################################################
-
-# Entrenar el modelo Ranger con la opción de importancia
-tree_ranger_grid <- train(
-  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + M2_por_Habitacion_Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + 
-    Dist_Transmilenio + Dist_Supermercados + Dist_C_Comerc + Dist_Universidades + Dist_Restaurantes + distancias_bancos, 
-  data = train_apart1,
-  method = "ranger",
-  trControl = fitControl,
-  tuneGrid = expand.grid(
-    mtry = c(1, 2, 3),
-    splitrule = "variance",
-    min.node.size = c(5, 10, 15)
-  ),
-  importance = "impurity"  # Especificar la importancia de variables
-)
-
-# Calcular la importancia de las variables
-importancia <- ranger::importance(tree_ranger_grid$finalModel)
-
-# Imprimir la importancia de las variables
-print(importancia)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-##### Boosting Trees
-lambda<-.01
-d<-1 #stump
-#Primera iteración
-fit1<-rpart(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + M2_por_Habitacion_Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + 
-              Dist_Transmilenio + Dist_Supermercados + Dist_C_Comerc + Dist_Universidades + Dist_Restaurantes + distancias_bancos, 
-            data = train_apart1, control = list(maxdepth = d))
-yhat1<-predict(fit1,newdata=train_apart1)
-
-head(lambda *yhat1)
-
+g_7
 
 #Errores de Predicción 
 # Crear un dataframe para almacenar los errores de los modelos
@@ -2678,7 +2515,4 @@ errores_df <- rbind(errores_df, data.frame(Modelo = "Tree Ranger grid", RMSE = e
 # Imprimir la tabla de errores
 print(errores_df)
 
-
-
-
-
+#########################Probar las predicciones para Apartamentos ############################################
