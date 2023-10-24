@@ -2069,3 +2069,48 @@ g_ls
 
 tabla_train_apart <- "C:/Output R/Taller 2/Taller_2/tabla_train_apart.xlsx"  
 write_xlsx(train_apart1, tabla_train_apart)
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA-------------------------------# 
+
+# -------------------------------CREACION DE OTRAS VARIABLES CASAS-------------------------# 
+
+test_casas1$Habitaciones2 <- test_casas1$Habitaciones^2
+test_casas1$M2_por_Habitacion_Garaje <- test_casas1$M2_por_Habitacion * test_casas1$Garaje
+test_casas1$Sala_BBQ_terraza <- test_casas1$Sala_BBQ * test_casas1$Terraza
+test_casas1$year <- as.character(test_casas1$year)
+test_casas1$month <- as.character(test_casas1$month)
+test_casas1$Fecha <- as.Date(paste0(test_casas1$year, "-", test_casas1$month, "-01"))
+test_casas1$Fecha <- as.Date(test_casas1$Fecha)
+
+test_casas1_1 <- "C:/Output R/Taller 2/Taller_2/tabla_train_apart.xlsx"  
+write_xlsx(test_casas1, tabla_train_apart)
+
+# -------------------------------CREACION DE OTRAS VARIABLES CASAS-------------------------# 
+
+test_apart1$Habitaciones2 <- test_apart1$Habitaciones^2
+test_apart1$M2_por_Habitacion_Garaje <- test_apart1$M2_por_Habitacion * test_apart1$Garaje
+test_apart1$Sala_BBQ_terraza <- test_apart1$Sala_BBQ * test_apart1$Terraza
+test_apart1$year <- as.character(test_apart1$year)
+test_apart1$month <- as.character(test_apart1$month)
+test_apart1$Fecha <- as.Date(paste0(test_apart1$year, "-", test_apart1$month, "-01"))
+test_apart1$Fecha <- as.Date(test_apart1$Fecha)
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA OLS-------------------------------# 
+
+Pred_casas_ols <- exp(predict(Model1, newdata = test_casas1))
+Pred_apart_ols <- exp(predict(Model5, newdata = test_apart1))
+submission_template$Pred_ols_fm <- c(Pred_casas_ols, Pred_apart_ols)
+
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA RIDGE-----------------------------# 
+
+Xc_test <- as.matrix(test_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje","M2_por_Habitacion_Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+Xa_test <- as.matrix(test_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje","M2_por_Habitacion_Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+
+
+Pred_casas_rg <- exp(predict(Model2, s = lambda_opt_apart, newx = Xc_test))
+Pred_apart_rg <- exp(predict(Model6, s = lambda_optimo, newx = Xa_test))
+submission_template$Pred_rg_fm <- c(Pred_casas_rg, Pred_apart_rg)
+
+tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos.xlsx"  
+write_xlsx(submission_template, tabla_pronost)
