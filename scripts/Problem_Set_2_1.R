@@ -1740,7 +1740,7 @@ g_ols
 
 # -------------------------------MODELOS DE RIDGE CASAS--------------------------------# 
 
-X <- as.matrix(train_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Sala_BBQ_terraza", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+X <- as.matrix(train_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "Area", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
 y <- train_casas1$lPrecio
 
 # Ajustar un modelo de regresión Ridge
@@ -1790,20 +1790,22 @@ g_rd
 
 # -------------------------------MODELOS LASSO CASAS--------------------------------# 
 
+X2 <- as.matrix(train_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+
 # Ajustar un modelo de regresión Lasso
-lasso_model <- glmnet(X, y, alpha = 1)
+lasso_model <- glmnet(X2, y, alpha = 1)
 dev.new()
 g_mse <- plot(lasso_model, xvar = "lambda")
 
 # Seleccionar el valor óptimo de lambda
-cv_lasso <- cv.glmnet(X, y, alpha = 1)  # alpha = 1 para regresión Lasso
+cv_lasso <- cv.glmnet(X2, y, alpha = 1)  # alpha = 1 para regresión Lasso
 g_coef <- plot(cv_lasso)
 lambda_optimo_lasso <- cv_lasso$lambda.min
 lambda_optimo_lasso
 
 # Ajustar el modelo Lasso con el valor óptimo de lambda
-Model3 <- glmnet(X, y, alpha = 1, lambda = lambda_optimo_lasso)
-train_casas1$Pred_Precios_ls <- predict(Model3, s = lambda_optimo_lasso, newx = X)
+Model3 <- glmnet(X2, y, alpha = 1, lambda = lambda_optimo_lasso)
+train_casas1$Pred_Precios_ls <- predict(Model3, s = lambda_optimo_lasso, newx = X2)
 coef(Model3)
 
 # Calcular el promedio de las predicciones
@@ -1837,17 +1839,18 @@ g_ls
 
 # -------------------------------MODELO ELASTIC NET CASAS--------------------------------# 
 
-# Modelo de regresión Elastic Net
-Elasticnet_model <- glmnet(X, y, alpha = 0.5)  # alpha = 0.5 para Elastic Net
+X3 <- as.matrix(train_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion","M2_por_Habitacion_Garaje", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+
+Elasticnet_model <- glmnet(X3, y, alpha = 0.5)  
 
 # Seleccionar el valor óptimo de lambda
-cv_elasticnet <- cv.glmnet(X, y, alpha = 0.5)  
+cv_elasticnet <- cv.glmnet(X3, y, alpha = 0.5)  
 lambda_optimo_en <- cv_elasticnet$lambda.min
 lambda_optimo_en
 
 # Ajustar el modelo Elastic Net con el valor óptimo de lambda
-Model4 <- glmnet(X, y, alpha = 0.5, lambda = lambda_optimo_en)
-train_casas1$Pred_Precios_en <- predict(Model4, s = lambda_optimo_en, newx = X)
+Model4 <- glmnet(X3, y, alpha = 0.5, lambda = lambda_optimo_en)
+train_casas1$Pred_Precios_en <- predict(Model4, s = lambda_optimo_en, newx = X3)
 coef(Model4)
 
 # Calcular el promedio de las predicciones
@@ -1879,8 +1882,8 @@ g_en <- ggplot(lPrecios_combinado_en, aes(x = as.Date(paste(Year, Month, "01", s
 g_en
 
 
-Tabla_train_casas <- "C:/Output R/Taller 2/Taller_2/tabla_train_casas.xlsx"  
-write_xlsx(train_casas1, Tabla_train_casas)
+#Tabla_train_casas <- "C:/Output R/Taller 2/Taller_2/tabla_train_casas.xlsx"  
+#write_xlsx(train_casas1, Tabla_train_casas)
 
 
 # -------------------------------CREACION DE OTRAS VARIABLES-------------------------- # 
@@ -1931,23 +1934,23 @@ g_ols
 
 # -------------------------------MODELOS DE RIDGE APARTAMENTO--------------------------------# 
 
-X <- as.matrix(train_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje","M2_por_Habitacion_Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
-y <- train_apart1$lPrecio
+X1 <- as.matrix(train_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "M2_por_Habitacion_Garaje", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+y1 <- train_apart1$lPrecio
 
 # Modelo de regresión Ridge
-ridge_model1 <- glmnet(X, y, alpha = 0) 
+ridge_model1 <- glmnet(X1, y1, alpha = 0) 
 dev.new()
 g_mse <- plot(ridge_model1, xvar = "lambda")
 
 # Seleccionar el valor óptimo de lambda
-cv_ridge1 <- cv.glmnet(X, y, alpha = 0) 
+cv_ridge1 <- cv.glmnet(X1, y1, alpha = 0) 
 g_coef <- plot(cv_ridge1)
 lambda_opt_apart <- cv_ridge1$lambda.min
 lambda_opt_apart
 
 # Modelo con el valor óptimo de lambda
-Model6 <- glmnet(X, y, alpha = 0, lambda = lambda_opt_apart)
-train_apart1$Pred_Precios_rg1 <- predict(Model6, s = lambda_opt_apart, newx = X)
+Model6 <- glmnet(X1, y1, alpha = 0, lambda = lambda_opt_apart)
+train_apart1$Pred_Precios_rg1 <- predict(Model6, s = lambda_opt_apart, newx = X1)
 coef(Model6)
 
 
@@ -1980,19 +1983,19 @@ g_rg
 # -------------------------------MODELOS LASSO APARTAMENTO--------------------------------# 
 
 # Ajustar un modelo de regresión Lasso
-lasso_model1 <- glmnet(X, y, alpha = 1)
+lasso_model1 <- glmnet(X1, y1, alpha = 1)
 dev.new()
 g_mse1 <- plot(lasso_model1, xvar = "lambda")
 
 # Seleccionar el valor óptimo de lambda
-cv_lasso1 <- cv.glmnet(X, y, alpha = 1)  # alpha = 1 para regresión Lasso
+cv_lasso1 <- cv.glmnet(X1, y1, alpha = 1)  # alpha = 1 para regresión Lasso
 g_coef1 <- plot(cv_lasso1)
 lambda_opt_ls_apart <- cv_lasso1$lambda.min
 lambda_opt_ls_apart
 
 # Ajustar el modelo Lasso con el valor óptimo de lambda
-Model7 <- glmnet(X, y, alpha = 1, lambda = lambda_opt_ls_apart)
-train_apart1$Pred_Precios_ls1 <- predict(Model7, s = lambda_opt_ls_apart, newx = X)
+Model7 <- glmnet(X1, y1, alpha = 1, lambda = lambda_opt_ls_apart)
+train_apart1$Pred_Precios_ls1 <- predict(Model7, s = lambda_opt_ls_apart, newx = X1)
 coef(Model7)
 
 
@@ -2025,18 +2028,19 @@ g_ls
 
 
 # ------------------------------MODELO ELASTIC NET APARTAMENTO-------------------------------# 
+X4 <- as.matrix(train_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "Area", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
 
 # Modelo de regresión Elastic Net
-Elasticnet_model1 <- glmnet(X, y, alpha = 0.5)  # alpha = 0.5 para Elastic Net
+Elasticnet_model1 <- glmnet(X4, y1, alpha = 0.5)  # alpha = 0.5 para Elastic Net
 
 # Seleccionar el valor óptimo de lambda
-cv_elasticnet1 <- cv.glmnet(X, y, alpha = 0.5)  
+cv_elasticnet1 <- cv.glmnet(X4, y1, alpha = 0.5)  
 lambda_opt_en_apart <- cv_elasticnet1$lambda.min
 lambda_opt_en_apart
 
 # Ajustar el modelo Elastic Net con el valor óptimo de lambda
-Model8 <- glmnet(X, y, alpha = 0.5, lambda = lambda_opt_en_apart)
-train_apart1$Pred_Precios_en1 <- predict(Model8, s = lambda_opt_en_apart, newx = X)
+Model8 <- glmnet(X4, y1, alpha = 0.5, lambda = lambda_opt_en_apart)
+train_apart1$Pred_Precios_en1 <- predict(Model8, s = lambda_opt_en_apart, newx = X4)
 coef(Model8)
 
 lPrecios_promedio1 <- aggregate(train_apart1$lPrecio, by = list(train_apart1$Fecha), FUN = mean)
@@ -2097,20 +2101,53 @@ test_apart1$Fecha <- as.Date(test_apart1$Fecha)
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA OLS-------------------------------# 
 
-Pred_casas_ols <- exp(predict(Model1, newdata = test_casas1))
-Pred_apart_ols <- exp(predict(Model5, newdata = test_apart1))
-submission_template$Pred_ols_fm <- c(Pred_casas_ols, Pred_apart_ols)
+Pred_casas_ols <- data.frame(test_casas1$property_id, exp(predict(Model1, newdata = test_casas1)))
+colnames(Pred_casas_ols) <- c("property_id", "Precio_Pred_ols")
+Pred_apart_ols <- data.frame(test_apart1$property_id, exp(predict(Model5, newdata = test_apart1)))
+colnames(Pred_apart_ols) <- c("property_id", "Precio_Pred_ols")
+Pred_ols_fm <- rbind(Pred_casas_ols, Pred_apart_ols)
+
+# tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos.xlsx"  
+# write_xlsx(submission_template, tabla_pronost)
 
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA RIDGE-----------------------------# 
 
-Xc_test <- as.matrix(test_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje","M2_por_Habitacion_Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+Xc_test <- as.matrix(test_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "Area", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
 Xa_test <- as.matrix(test_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje","M2_por_Habitacion_Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
 
 
-Pred_casas_rg <- exp(predict(Model2, s = lambda_opt_apart, newx = Xc_test))
-Pred_apart_rg <- exp(predict(Model6, s = lambda_optimo, newx = Xa_test))
-submission_template$Pred_rg_fm <- c(Pred_casas_rg, Pred_apart_rg)
+Pred_casas_rg <- data.frame(test_casas1$property_id, exp(predict(Model2, s = lambda_optimo, newx = Xc_test)))
+colnames(Pred_casas_rg) <- c("property_id", "Precio_Pred_rg")
+Pred_apart_rg <- data.frame(test_apart1$property_id, exp(predict(Model6, s = lambda_opt_apart, newx = Xa_test)))
+colnames(Pred_apart_rg) <- c("property_id", "Precio_Pred_rg")
+Pred_rg_fm <- rbind(Pred_casas_rg, Pred_apart_rg)
+# tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos.xlsx"  
+# write_xlsx(Pred_rg_fm, tabla_pronost)
 
-tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos.xlsx"  
-write_xlsx(submission_template, tabla_pronost)
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA LASSO-----------------------------# 
+
+Xc1_test <- as.matrix(test_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+Xa1_test <- as.matrix(test_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "M2_por_Habitacion_Garaje", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+
+Pred_casas_ls <- data.frame(test_casas1$property_id, exp(predict(Model3, s = lambda_optimo_lasso, newx = Xc1_test)))
+colnames(Pred_casas_ls) <- c("property_id", "Precio_Pred_ls")
+Pred_apart_ls <- data.frame(test_apart1$property_id, exp(predict(Model7, s = lambda_opt_ls_apart, newx = Xa1_test)))
+colnames(Pred_apart_ls) <- c("property_id", "Precio_Pred_ls")
+Pred_ls_fm <- rbind(Pred_casas_ls, Pred_apart_ls)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos.xlsx"  
+#write_xlsx(Pred_ls_fm, tabla_pronost)
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA ELASTIC NET-----------------------------# 
+
+Xc2_test <- as.matrix(test_casas1[,  c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion","M2_por_Habitacion_Garaje", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+Xa2_test <- as.matrix(test_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "Area", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+
+Pred_casas_en <- data.frame(test_casas1$property_id, exp(predict(Model4, s = lambda_optimo_en, newx = Xc2_test)))
+colnames(Pred_casas_en) <- c("property_id", "Precio_Pred_en")
+Pred_apart_en <- data.frame(test_apart1$property_id, exp(predict(Model8, s = lambda_opt_en_apart, newx = Xa2_test)))
+colnames(Pred_apart_en) <- c("property_id", "Precio_Pred_en")
+Pred_en_fm <- rbind(Pred_casas_en, Pred_apart_en)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos.xlsx"  
+#write_xlsx(Pred_en_fm, tabla_pronost)
+
