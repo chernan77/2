@@ -1720,6 +1720,9 @@ colnames(lPrecios_promedio) <- c("Year", "Month", "Precio_Promedio_Casas")
 lPrecios_promedio_pred <- aggregate(train_casas1$Pred_Precios, by = list(train_casas1$year, train_casas1$month), FUN = mean)
 colnames(lPrecios_promedio_pred) <- c("Year", "Month", "Precio_Promedio_Casas")
 
+# Calculo de los Errores Dentro de Muestra:
+
+
 # Crear un único conjunto de datos con las dos series de tiempo
 lPrecios_combinado <- rbind(
   data.frame(Year = lPrecios_promedio$Year, Month = lPrecios_promedio$Month, Precio_Promedio = lPrecios_promedio$Precio_Promedio_Casas, Tipo = "Observado"),
@@ -1765,6 +1768,11 @@ lambda_optimo
 Model2 <- glmnet(X, y, alpha = 0, lambda = lambda_optimo)
 train_casas1$Pred_Precios_rg <- predict(Model2, s = lambda_optimo, newx = X)
 coef(Model2)
+
+
+MAE_RD_C <- exp(abs(train_casas1$lPrecio-train_casas1$Pred_Precios_rg))
+MAE_RD_C <-  mean(MAE_RD_C)
+
 
 # Calcular el promedio de las predicciones
 lPrecios_promedio_pred_rg <- aggregate(train_casas1$Pred_Precios_rg, by = list(train_casas1$year, train_casas1$month), FUN = mean)
@@ -1819,6 +1827,9 @@ coef(Model3)
 lPrecios_promedio_pred_ls <- aggregate(train_casas1$Pred_Precios_ls, by = list(train_casas1$year, train_casas1$month), FUN = mean)
 colnames(lPrecios_promedio_pred_ls) <- c("Year", "Month", "Precio_Promedio_Casas")
 
+MAE_LS_C <- exp(abs(train_casas1$lPrecio-train_casas1$Pred_Precios_ls))
+MAE_LS_C <-  mean(MAE_LS_C)
+
 # Crear un único conjunto de datos con las dos series de tiempo
 lPrecios_combinado_ls <- rbind(
   data.frame(Year = lPrecios_promedio$Year, Month = lPrecios_promedio$Month, Precio_Promedio = lPrecios_promedio$Precio_Promedio_Casas, Tipo = "Observado"),
@@ -1863,6 +1874,9 @@ coef(Model4)
 # Calcular el promedio de las predicciones
 lPrecios_promedio_pred_en <- aggregate(train_casas1$Pred_Precios_en, by = list(train_casas1$year, train_casas1$month), FUN = mean)
 colnames(lPrecios_promedio_pred_en) <- c("Year", "Month", "Precio_Promedio_Casas")
+
+MAE_EN_C <- exp(abs(train_casas1$lPrecio-train_casas1$Pred_Precios_en))
+MAE_EN_C <-  mean(MAE_EN_C)
 
 # Crear un único conjunto de datos con las dos series de tiempo
 lPrecios_combinado_en <- rbind(
@@ -1925,6 +1939,9 @@ colnames(lPrecios_promedio_pred1) <- c("Fecha", "Precio_Promedio_Apart")
 lPrecios_promedio_pred1$Tipo <- "Predicción"
 lPrecios_promedio_pred1
 
+MAE_OLS_A <- exp(abs(train_apart1$lPrecio-train_apart1$Pred_Precios1))
+MAE_OLS_A <-  mean(MAE_OLS_A)
+
 g_ols <- ggplot() +
   geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
   geom_line(data = lPrecios_promedio_pred1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
@@ -1967,6 +1984,9 @@ coef(Model6)
 lPrecios_promedio_pred_rg1 <- aggregate(train_apart1$Pred_Precios_rg1, by = list(train_apart1$Fecha), FUN = mean)
 colnames(lPrecios_promedio_pred_rg1) <- c("Fecha", "Precio_Promedio_Apart")
 lPrecios_promedio_pred_rg1$Tipo <- "Predicción"
+
+MAE_RD_A <- exp(abs(train_apart1$lPrecio-train_apart1$Pred_Precios_rg1))
+MAE_RD_A <-  mean(MAE_RD_A)
 
 g_rg <- ggplot() +
   geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
@@ -2017,6 +2037,10 @@ colnames(lPrecios_promedio_pred_ls1) <- c("Fecha", "Precio_Promedio_Apart")
 lPrecios_promedio_pred_ls1$Tipo <- "Predicción"
 
 
+
+MAE_LS_A <- exp(abs(train_apart1$lPrecio-train_apart1$Pred_Precios_ls1))
+MAE_LS_A <-  mean(MAE_LS_A)
+
 g_ls <- ggplot() +
   geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
   geom_line(data = lPrecios_promedio_pred_ls1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
@@ -2060,6 +2084,8 @@ lPrecios_promedio_pred_en1 <- aggregate(train_apart1$Pred_Precios_en1, by = list
 colnames(lPrecios_promedio_pred_en1) <- c("Fecha", "Precio_Promedio_Apart")
 lPrecios_promedio_pred_en1$Tipo <- "Predicción"
 
+MAE_EN_A <- exp(abs(train_apart1$lPrecio-train_apart1$Pred_Precios_en1))
+MAE_EN_A <-  mean(MAE_EN_A)
 
 g_ls <- ggplot() +
   geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
@@ -2082,6 +2108,11 @@ g_ls
 
 tabla_train_apart <- "C:/Output R/Taller 2/Taller_2/tabla_train_apart.xlsx"  
 write_xlsx(train_apart1, tabla_train_apart)
+
+# ----------------------------TABLA DE ERRORES ABSOLUTOS----------------------------------# 
+
+
+
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA-------------------------------# 
 
@@ -2163,3 +2194,54 @@ write.csv(x = Pred_en_fm,
           file = paste0(tabla_pronost, 'Pronost_en.csv'),
           row.names = FALSE)
 
+
+Pred_casa_olsc <- data.frame(train_casas1$property_id, exp(predict(Model1, newdata = train_casas1)))
+colnames(Pred_casa_olsc) <- c("property_id", "Pred_ols")
+Pred_apart_olsa <- data.frame(train_apart1$property_id, exp(predict(Model5, newdata = train_apart1)))
+colnames(Pred_apart_olsa) <- c("property_id", "Pred_ols")
+Pred_ols <- rbind(Pred_casa_olsc, Pred_apart_olsa)
+
+
+Pred_casa_rgd <- data.frame(train_casas1$property_id, exp(predict(Model2, s = lambda_optimo, newx = train_casas1)))
+colnames(Pred_casa_rgd) <- c("property_id", "Pred_rgd")
+Pred_apart_rgd <- data.frame(train_apart1$property_id, exp(predict(Model6, s = lambda_opt_apart, newx= train_apart1)))
+colnames(Pred_apart_rgd) <- c("property_id", "Pred_rgd")
+Pred_rgd <- rbind(Pred_casa_rgd, Pred_apart_rgd)
+
+Pred_casa_lss <- data.frame(train_casas1$property_id, exp(predict(Model3,s = lambda_optimo_lasso, newx = train_casas1)))
+colnames(Pred_casa_lss) <- c("property_id", "Pred_lss")
+Pred_apart_lss <- data.frame(train_apart1$property_id, exp(predict(Model7, s = lambda_opt_ls_apart, newx = train_apart1)))
+colnames(Pred_apart_lss) <- c("property_id", "Pred_lss")
+Pred_lss <- rbind(Pred_casa_lss, Pred_apart_lss)
+
+Pred_casa_eln <- data.frame(train_casas1$property_id, exp(predict(Model4, s = lambda_optimo_en, newx = train_casas1)))
+colnames(Pred_casa_eln) <- c("property_id", "Pred_eln")
+Pred_apart_eln <- data.frame(train_apart1$property_id, exp(predict(Model8, s = lambda_opt_en_apart, newx= train_apart1)))
+colnames(Pred_apart_eln) <- c("property_id", "Pred_eln")
+Pred_eln <- rbind(Pred_casa_eln, Pred_apart_eln)
+
+
+Precios_Obs <- train[, c("property_id", "Precio")]
+# Combinar los precios reales en un único conjunto
+Datos_1t <- merge(Pred_ols, Precios_Obs, by = "property_id")
+Datos_2t <- merge(Pred_rgd, Precios_Obs, by = "property_id")
+Datos_3t <- merge(Pred_lss, Precios_Obs, by = "property_id")
+Datos_4t <- merge(Pred_eln, Precios_Obs, by = "property_id")
+
+
+MAE_1t <- abs(mean((Datos_1t$Pred_ols - Datos_1t$Precio)))
+MAE_2t  <- abs(mean((Datos_2t$Pred_rgd - Datos_2t$Precio)))
+MAE_3t  <- abs(mean((Datos_3t$Pred_lss - Datos_3t$Precio)))
+MAE_4t  <- abs(mean((Datos_4t$Pred_eln - Datos_4t$Precio)))
+
+# Luego puedes almacenar los resultados en un dataframe
+errores_mae <- data.frame(
+  Modelo = c("OLS", "Ridge", "Lasso", "Elastic_Net"),
+  MAE = c(MAE_1t, MAE_2t, MAE_3t, MAE_4t)
+)
+
+print(errores_mae)
+
+
+tabla_error <- "C:/Output R/Taller 2/Taller_2/error.xlsx"  
+write_xlsx(Errores, tabla_error)
