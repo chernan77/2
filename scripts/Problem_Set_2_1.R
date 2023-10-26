@@ -2806,9 +2806,6 @@ MAE_2 <- mean(abs(exp(test_E4$Predict_rgd) - test_E4$Precio))
 MAE_3 <- mean(abs(exp(test_E4$Predict_ls) - test_E4$Precio))
 MAE_4 <- mean(abs(exp(test_E4$Predict_en) - test_E4$Precio))
 
-
-
-
 # Luego puedes almacenar los resultados en un dataframe
 Errores_MAE <- data.frame(
   Modelo = c("OLS", "Ridge", "Lasso", "Elastic_Net"),
