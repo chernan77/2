@@ -173,7 +173,7 @@ library(caret)
 #install.packages("ipred")
 library(ipred)
 library(caret)
-install.packages("rpart.plot")
+#install.packages("rpart.plot")
 library(rpart.plot)
 #######################################Empecemos con un modelo de regresión lineal###################################
 
@@ -250,8 +250,10 @@ for (i in seq_along(recetas)) {
   predicciones <- predict(modelo, new_data = test_data) %>%
     bind_cols(test_data)
   
+  predicciones <- predicciones %>% mutate(.pred = exp(.pred))
+  
   # Calcular el MAE
-  mae <- yardstick::mae(data = predicciones, truth = lPrecio, estimate = .pred)
+  mae <- yardstick::mae(data = predicciones, truth = Precio, estimate = .pred)
   
   results[[i]] <- mae
 }
@@ -306,6 +308,7 @@ for (i in seq_along(recetas2)) {
   # Realizar predicciones en el conjunto de prueba
   predicciones <- predict(modelo, new_data = testing_data) %>%
     bind_cols(testing_data)
+  predicciones <- predicciones %>% mutate(.pred = exp(.pred))
   
   # Calcular el MAE
   mae <- yardstick::mae(data = predicciones, truth = lPrecio, estimate = .pred)
@@ -748,7 +751,7 @@ testing_data$Predict_rgd_a <- as.numeric(testing_data$Predict_rgd_a)
 testing_data$lPrecio <- as.numeric(testing_data$lPrecio)
 
 # Calcular el MAE de manera manual
-mae_value <- mean(abs(testing_data$Predict_rgd_a - testing_data$lPrecio), na.rm = TRUE)
+mae_value <- mean(abs(exp(testing_data$Predict_rgd_a) - exp(testing_data$lPrecio)), na.rm = TRUE)
 
 # Imprimir el valor del MAE
 cat("MAE en datos de prueba:", mae_value, "\n")
@@ -872,7 +875,7 @@ tree_ranger_grid <- train(
 predicciones_fuera_de_muestra <- predict(tree_ranger_grid, newdata = test_data)
 
 # Evalúa el rendimiento del modelo
-mae <- mean(abs(predicciones_fuera_de_muestra - test_data$lPrecio))
+mae <- mean(abs(exp(predicciones_fuera_de_muestra) - exp(test_data$lPrecio)))
 print(paste("MAE en datos de prueba:", mae))
 ###########################################LASSO##########################################################
 lasso_recipe <-
