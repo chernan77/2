@@ -2514,6 +2514,9 @@ test_aE4$Predict_rgd <- unlist(test_aE4$Predict_rgd)
 test_aE4$Predict_rgd <- as.numeric(test_aE4$Predict_rgd)
 
 
+
+
+
 # ---------------------------------------CASAS----------------------------------------- #
 # Esto se utilizará para evaluar el rendimiento del modelo en diferentes subconjuntos de  datos durante la validación cruzada.
 
@@ -2563,7 +2566,6 @@ test_cE4$Predict_rgd <- unlist(test_cE4$Predict_rgd)
 test_cE4$Predict_rgd <- as.numeric(test_cE4$Predict_rgd)
 
 
-
 # ------------------------------------Precios Predicciones RIDGE-------------------------- #
 Pred_casa_rgd_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_rgd))
 colnames(Pred_casa_rgd_4) <- c("property_id", "Fecha", "Precio_Pred_Ridge")
@@ -2593,6 +2595,10 @@ g_rgd <- ggplot() +
     panel.grid = element_line(color = "gray")
   )
 g_rgd
+
+
+
+
 
 
 # ------------------------------------------LASSO--------------------------------------------- #
@@ -2829,43 +2835,36 @@ write.csv(x = Pred_ols_fm,
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA RIDGE-----------------------------# 
 
-
-Xc_test <- as.matrix(test_casas1[, c( "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
-Xa_test <- as.matrix(test_apart1[, c("Habitaciones", "Habitaciones2", "Baños","M2_por_Habitacion", "M2_por_Habitacion_Garaje", "Terraza", "Garaje", "Gimnasio", "Chimenea", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
-
-
-Pred_casas_rg <- data.frame(test_casas1$property_id, exp(predict(Model2, s = lambda_optimo, newx = Xc_test)))
-colnames(Pred_casas_rg) <- c("property_id", "Precio_Pred_rg")
-Pred_apart_rg <- data.frame(test_apart1$property_id, exp(predict(Model6, s = lambda_opt_apart, newx = Xa_test)))
-colnames(Pred_apart_rg) <- c("property_id", "Precio_Pred_rg")
-Pred_rg_fm <- rbind(Pred_casas_rg, Pred_apart_rg)
-tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos.xlsx"  
-write_xlsx(Pred_rg_fm, tabla_pronost)
+Pred_casas_rgd4 <- data.frame(test_casas1$property_id, exp(predict(Ridge_c, new_data = test_casas1)))
+colnames(Pred_casas_rgd4) <- c("property_id", "Precio_Pred_rgd")
+Pred_apart_rgd4 <- data.frame(test_apart1$property_id, exp(predict(Ridge_a, new_data = test_apart1)))
+colnames(Pred_apart_rgd4) <- c("property_id", "Precio_Pred_rgd")
+Pred_rgd_fm4 <- rbind(Pred_casas_rgd4, Pred_apart_rgd4)
+tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_rgd.csv"  
+write.csv(x = Pred_rgd_fm4,
+          file = paste0(tabla_pronost, 'Pred_rgd.csv'),
+          row.names = FALSE)
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA LASSO-----------------------------# 
 
-Xc1_test <- as.matrix(test_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
-Xa1_test <- as.matrix(test_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
-
-Pred_casas_ls <- data.frame(test_casas1$property_id, exp(predict(Model3, s = lambda_optimo_lasso, newx = Xc1_test)))
-colnames(Pred_casas_ls) <- c("property_id", "Precio_Pred_ls")
-Pred_apart_ls <- data.frame(test_apart1$property_id, exp(predict(Model7, s = lambda_opt_ls_apart, newx = Xa1_test)))
-colnames(Pred_apart_ls) <- c("property_id", "Precio_Pred_ls")
-Pred_ls_fm <- rbind(Pred_casas_ls, Pred_apart_ls)
-tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos.xlsx"  
-write_xlsx(Pred_ls_fm, tabla_pronost)
+Pred_casas_ls4 <- data.frame(test_casas1$property_id, exp(predict(Lasso_c,  new_data = test_casas1)))
+colnames(Pred_casas_ls4) <- c("property_id", "Precio_Pred_ls")
+Pred_apart_ls4 <- data.frame(test_apart1$property_id, exp(predict(Lasso_a, new_data = test_apart1)))
+colnames(Pred_apart_ls4) <- c("property_id", "Precio_Pred_ls")
+Pred_ls_fm4 <- rbind(Pred_casas_ls4, Pred_apart_ls4)
+tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_ls.csv"  
+write.csv(x = Pred_ls_fm4,
+          file = paste0(tabla_pronost, 'Pred_ls.csv'),
+          row.names = FALSE)
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA ELASTIC NET-----------------------------# 
 
-Xc2_test <- as.matrix(test_casas1[,  c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion","M2_por_Habitacion_Garaje", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
-Xa2_test <- as.matrix(test_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "Area", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
-
-Pred_casas_en <- data.frame(test_casas1$property_id, exp(predict(Model4, s = lambda_optimo_en, newx = Xc2_test)))
-colnames(Pred_casas_en) <- c("property_id", "Precio_Pred_en")
-Pred_apart_en <- data.frame(test_apart1$property_id, exp(predict(Model8, s = lambda_opt_en_apart, newx = Xa2_test)))
-colnames(Pred_apart_en) <- c("property_id", "Precio_Pred_en")
-Pred_en_fm <- rbind(Pred_casas_en, Pred_apart_en)
-tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pronost_en.csv"  
-write.csv(x = Pred_en_fm,
-          file = paste0(tabla_pronost, 'Pronost_en.csv'),
+Pred_casas_en4 <- data.frame(test_casas1$property_id, exp(predict(elasNet_c, new_data = test_casas1)))
+colnames(Pred_casas_en4) <- c("property_id", "Precio_Pred_en")
+Pred_apart_en4 <- data.frame(test_apart1$property_id, exp(predict(elasNet_a, new_data = test_apart1)))
+colnames(Pred_apart_en4) <- c("property_id", "Precio_Pred_en")
+Pred_en_fm4 <- rbind(Pred_casas_en4, Pred_apart_en4)
+tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_en.csv"  
+write.csv(x = Pred_en_fm4,
+          file = paste0(tabla_pronost, 'Pred_en.csv'),
           row.names = FALSE)
