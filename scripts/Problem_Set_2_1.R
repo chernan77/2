@@ -1596,7 +1596,7 @@ test <- test %>% rename(Precio=price)
 test <- test %>% rename(Habitaciones=bedrooms)
 test <- test %>% rename(Baños=bathrooms) 
 test <- test %>% rename(Area=nueva_surface)
-test <- test %>% rename(M2_por_Habitación=metros_cuadrados_por_bedrooms)
+test <- test %>% rename(M2_por_Habitacion=metros_cuadrados_por_bedrooms)
 test <- test %>% rename(Terraza=tiene_terraza) 
 test <- test %>% rename(Sala_BBQ=tiene_bbq) 
 test <- test %>% rename(Garaje=total_parqueo) 
@@ -1618,8 +1618,8 @@ test$lPrecio <- NA
 
 ##-----------------------------CASAS----------------------------------------
 
-test_casas <- test[train$property_type == "Casa", c("property_id","title", "month", "year", "localidad","Estrato", "Precio", "lPrecio", 
-                                                      "Precio_M2", "Habitaciones", "Baños", "Area","M2_por_Habitación", "lat", "lon", "Terraza", 
+test_casas <- test[test$property_type == "Casa", c("property_id","title", "month", "year", "localidad","Estrato", "Precio", "lPrecio", 
+                                                      "Precio_M2", "Habitaciones", "Baños", "Area","M2_por_Habitacion", "lat", "lon", "Terraza", 
                                                       "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
                                                       "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", 
                                                       "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")]
@@ -1629,8 +1629,8 @@ write_xlsx(test_casas, Tabla_test_casas)
 
 ##---------------------------------------Apartamentos ----------------------------------------##
 
-test_apart <- test[train$property_type == "Apartamento", c("property_id","title", "month", "year", "localidad","Estrato", "Precio", "lPrecio", 
-                                                           "Precio_M2", "Habitaciones", "Baños", "Area","M2_por_Habitación", "lat", "lon", "Terraza", 
+test_apart <- test[test$property_type == "Apartamento", c("property_id","title", "month", "year", "localidad","Estrato", "Precio", "lPrecio", 
+                                                           "Precio_M2", "Habitaciones", "Baños", "Area","M2_por_Habitacion", "lat", "lon", "Terraza", 
                                                            "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
                                                            "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", 
                                                            "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")]
@@ -1939,8 +1939,6 @@ colnames(lPrecios_promedio_pred1) <- c("Fecha", "Precio_Promedio_Apart")
 lPrecios_promedio_pred1$Tipo <- "Predicción"
 lPrecios_promedio_pred1
 
-MAE_OLS_A <- exp(abs(train_apart1$lPrecio-train_apart1$Pred_Precios1))
-MAE_OLS_A <-  mean(MAE_OLS_A)
 
 g_ols <- ggplot() +
   geom_line(data = lPrecios_promedio1, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
@@ -2109,11 +2107,6 @@ g_ls
 tabla_train_apart <- "C:/Output R/Taller 2/Taller_2/tabla_train_apart.xlsx"  
 write_xlsx(train_apart1, tabla_train_apart)
 
-# ----------------------------TABLA DE ERRORES ABSOLUTOS----------------------------------# 
-
-
-
-
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA-------------------------------# 
 
 # -------------------------------CREACION DE OTRAS VARIABLES CASAS-------------------------# 
@@ -2146,6 +2139,7 @@ Pred_apart_ols <- data.frame(test_apart1$property_id, exp(predict(Model5, newdat
 colnames(Pred_apart_ols) <- c("property_id", "Precio_Pred_ols")
 Pred_ols_fm <- rbind(Pred_casas_ols, Pred_apart_ols)
 
+
 tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pronost_ols.csv"  
 write.csv(x = Pred_ols_fm,
           file = paste0(tabla_pronost, 'Pronost_ols.csv'),
@@ -2163,7 +2157,7 @@ colnames(Pred_casas_rg) <- c("property_id", "Precio_Pred_rg")
 Pred_apart_rg <- data.frame(test_apart1$property_id, exp(predict(Model6, s = lambda_opt_apart, newx = Xa_test)))
 colnames(Pred_apart_rg) <- c("property_id", "Precio_Pred_rg")
 Pred_rg_fm <- rbind(Pred_casas_rg, Pred_apart_rg)
-tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos_ridge.xlsx"  
+tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos.xlsx"  
 write_xlsx(Pred_rg_fm, tabla_pronost)
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA LASSO-----------------------------# 
@@ -2176,8 +2170,8 @@ colnames(Pred_casas_ls) <- c("property_id", "Precio_Pred_ls")
 Pred_apart_ls <- data.frame(test_apart1$property_id, exp(predict(Model7, s = lambda_opt_ls_apart, newx = Xa1_test)))
 colnames(Pred_apart_ls) <- c("property_id", "Precio_Pred_ls")
 Pred_ls_fm <- rbind(Pred_casas_ls, Pred_apart_ls)
-#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos.xlsx"  
-#write_xlsx(Pred_ls_fm, tabla_pronost)
+tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos.xlsx"  
+write_xlsx(Pred_ls_fm, tabla_pronost)
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA ELASTIC NET-----------------------------# 
 
@@ -2194,6 +2188,8 @@ write.csv(x = Pred_en_fm,
           file = paste0(tabla_pronost, 'Pronost_en.csv'),
           row.names = FALSE)
 
+# ------------------------------ERRORES DENTRO DE MUESTRA MSE----------------------------------------# 
+# -------------------------------------------------------------------------------------------------- #
 
 Pred_casa_olsc <- data.frame(train_casas1$property_id, exp(predict(Model1, newdata = train_casas1)))
 colnames(Pred_casa_olsc) <- c("property_id", "Pred_ols")
@@ -2201,22 +2197,32 @@ Pred_apart_olsa <- data.frame(train_apart1$property_id, exp(predict(Model5, newd
 colnames(Pred_apart_olsa) <- c("property_id", "Pred_ols")
 Pred_ols <- rbind(Pred_casa_olsc, Pred_apart_olsa)
 
+Xc_train <- as.matrix(train_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "Area", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+Xa_train <- as.matrix(train_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños","M2_por_Habitacion", "M2_por_Habitacion_Garaje", "Terraza", "Garaje", "Gimnasio", "Chimenea", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
 
-Pred_casa_rgd <- data.frame(train_casas1$property_id, exp(predict(Model2, s = lambda_optimo, newx = train_casas1)))
+Pred_casa_rgd <- data.frame(train_casas1$property_id, exp(predict(Model2, s = lambda_optimo, newx = Xc_train)))
 colnames(Pred_casa_rgd) <- c("property_id", "Pred_rgd")
-Pred_apart_rgd <- data.frame(train_apart1$property_id, exp(predict(Model6, s = lambda_opt_apart, newx= train_apart1)))
+Pred_apart_rgd <- data.frame(train_apart1$property_id, exp(predict(Model6, s = lambda_opt_apart, newx= Xa_train)))
 colnames(Pred_apart_rgd) <- c("property_id", "Pred_rgd")
 Pred_rgd <- rbind(Pred_casa_rgd, Pred_apart_rgd)
 
-Pred_casa_lss <- data.frame(train_casas1$property_id, exp(predict(Model3,s = lambda_optimo_lasso, newx = train_casas1)))
+Xc1_train <- as.matrix(train_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+Xa1_train <- as.matrix(train_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+
+
+Pred_casa_lss <- data.frame(train_casas1$property_id, exp(predict(Model3,s = lambda_optimo_lasso, newx = Xc1_train)))
 colnames(Pred_casa_lss) <- c("property_id", "Pred_lss")
-Pred_apart_lss <- data.frame(train_apart1$property_id, exp(predict(Model7, s = lambda_opt_ls_apart, newx = train_apart1)))
+Pred_apart_lss <- data.frame(train_apart1$property_id, exp(predict(Model7, s = lambda_opt_ls_apart, newx = Xa1_train)))
 colnames(Pred_apart_lss) <- c("property_id", "Pred_lss")
 Pred_lss <- rbind(Pred_casa_lss, Pred_apart_lss)
 
-Pred_casa_eln <- data.frame(train_casas1$property_id, exp(predict(Model4, s = lambda_optimo_en, newx = train_casas1)))
+Xc2_train <- as.matrix(train_casas1[,  c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion","M2_por_Habitacion_Garaje", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+Xa2_train <- as.matrix(train_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "Area", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+
+
+Pred_casa_eln <- data.frame(train_casas1$property_id, exp(predict(Model4, s = lambda_optimo_en, newx = Xc2_train)))
 colnames(Pred_casa_eln) <- c("property_id", "Pred_eln")
-Pred_apart_eln <- data.frame(train_apart1$property_id, exp(predict(Model8, s = lambda_opt_en_apart, newx= train_apart1)))
+Pred_apart_eln <- data.frame(train_apart1$property_id, exp(predict(Model8, s = lambda_opt_en_apart, newx= Xa2_train )))
 colnames(Pred_apart_eln) <- c("property_id", "Pred_eln")
 Pred_eln <- rbind(Pred_casa_eln, Pred_apart_eln)
 
@@ -2245,3 +2251,436 @@ print(errores_mae)
 
 tabla_error <- "C:/Output R/Taller 2/Taller_2/error.xlsx"  
 write_xlsx(Errores, tabla_error)
+
+
+
+#-----------Elaboración de Modelos para pronosticar el Precio de las Casas y Apartamentos-------------------##
+##--------------------------------------------Datos de Estrato 4--------------------------------------------##
+
+
+##--------------------------- Bases de Datos Casas y Apartamentos------------------##
+
+##---------------------------------------------------CASAS-------------------------------------------------------------------------------------------
+
+train_casas_E4 <- train_casas1[train_casas1$Estrato == 4, c("property_id","title", "Fecha", "localidad","Precio", "lPrecio", 
+                                                    "Precio_M2", "Habitaciones","Habitaciones2" ,"Baños", "Area","M2_por_Habitacion", "lat", "lon", "Terraza", 
+                                                    "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
+                                                    "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", 
+                                                    "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")]
+
+
+test_casas_4 <- test_casas1[test_casas1$Estrato == 4, c("property_id","title", "Fecha", "localidad","Precio", "lPrecio", 
+                                                            "Precio_M2", "Habitaciones","Habitaciones2" ,"Baños", "Area","M2_por_Habitacion", "lat", "lon", "Terraza", 
+                                                            "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
+                                                            "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", 
+                                                            "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")]
+
+
+
+# El conjunto de entrenamiento va a tener el 70% de los datos 
+set.seed(123)
+data_split <- initial_split(train_casas_E4, prop = .7)
+train_cE4 <- training(data_split)
+test_cE4  <- testing(data_split)
+
+
+# Crear la receta
+rec1 <- recipe(lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion, data = train_cE4)
+rec2 <- recipe(lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad,  data = train_cE4)
+rec3 <- recipe(lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+               + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_cE4)
+
+lm_mod <- linear_reg() 
+
+# Crear el flujo de trabajo
+wf1 <- workflow() %>% add_recipe(rec1) %>% add_model(lm_mod)
+wf2 <- workflow() %>% add_recipe(rec2) %>% add_model(lm_mod)
+wf3 <- workflow() %>% add_recipe(rec3) %>% add_model(lm_mod)
+
+# ---------------------------------------------Estimación 1---------------------------------------------------#   
+Reg1.1 <- wf1 %>%
+  fit(data = train_cE4)
+test_pred1.1 <- predict(Reg1.1 , new_data = test_cE4) %>% 
+  bind_cols(test_cE4)
+test_rmse.1.1 <- rmse(test_pred1.1, truth = lPrecio, estimate = .pred)
+test_rmse.1.1$.estimate
+
+# ---------------------------------------------Estimación 2---------------------------------------------------#   
+Reg1.2 <- wf2 %>%
+  fit(data = train_cE4)
+test_pred1.2 <- predict(Reg1.2 , new_data = test_cE4) %>% 
+  bind_cols(test_cE4)
+test_rmse.1.2 <- rmse(test_pred1.2, truth = lPrecio, estimate = .pred)
+test_rmse.1.2$.estimate
+
+# ---------------------------------------------Estimación 3---------------------------------------------------#   
+Reg1.3 <- wf3 %>%
+  fit(data = train_cE4)
+Pred1.3_ols <- predict(Reg1.3 , new_data = test_cE4) %>% 
+  bind_cols(test_cE4)
+test_cE4$Predict_ols <- predict(Reg1.3, new_data = test_cE4)
+
+test_rmse.1.3 <- rmse(Pred1.3_ols, truth = lPrecio, estimate = .pred)
+test_rmse.1.3$.estimate
+tidy(Reg1.3)
+
+lPrecios_Medios1 <- aggregate(test_cE4$lPrecio, by = list(test_cE4$Fecha), FUN = mean)
+colnames(lPrecios_Medios1) <- c("Fecha", "Precio_Promedio_Casas")
+lPrecios_Medios1$Tipo <- "Observado"
+
+lPrecios_Medios1_pred_ols <- aggregate(test_cE4$Predict_ols, by = list(test_cE4$Fecha), FUN = mean)
+colnames(lPrecios_Medios1_pred_ols ) <- c("Fecha", "Precio_Promedio_Casas")
+lPrecios_Medios1_pred_ols$Tipo <- "Predicción"
+
+
+g_ols <- ggplot() +
+  geom_line(data = lPrecios_Medios1, aes(x = Fecha, y = Precio_Promedio_Casas, color = "Observado"), size = 1) +
+  geom_line(data = lPrecios_Medios1_pred_ols, aes(x = Fecha, y = Precio_Promedio_Casas, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio de Casas OLS",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_ols
+
+
+
+##---------------------------------------Apartamentos ----------------------------------------##
+
+train_apart_E4 <- train_apart1[train_apart1$Estrato == 4, c("property_id","title", "Fecha", "localidad","Precio", "lPrecio", 
+                                                     "Precio_M2", "Habitaciones","Habitaciones2", "Baños", "Area","M2_por_Habitacion", "lat", "lon", "Terraza", 
+                                                     "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
+                                                     "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", 
+                                                     "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")]
+
+
+
+test_apart_4 <- test_apart1[test_apart1$Estrato == 4, c("property_id","title", "Fecha", "localidad","Precio", "lPrecio", 
+                                                        "Precio_M2", "Habitaciones","Habitaciones2" ,"Baños", "Area","M2_por_Habitacion", "lat", "lon", "Terraza", 
+                                                        "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
+                                                        "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", 
+                                                        "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")]
+
+
+# El conjunto de entrenamiento va a tener el 70% de los datos 
+set.seed(123)
+data_split <- initial_split(train_apart_E4, prop = .7)
+train_aE4 <- training(data_split)
+test_aE4  <- testing(data_split)
+
+
+# Crear la receta
+rec_1 <- recipe(lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion, data = train_aE4)
+rec_2 <- recipe(lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad,  data = train_aE4)
+rec_3 <- recipe(lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+               + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_aE4)
+
+lm_mod <- linear_reg() 
+
+# Crear el flujo de trabajo
+wf_1 <- workflow() %>% add_recipe(rec_1) %>% add_model(lm_mod)
+wf_2 <- workflow() %>% add_recipe(rec_2) %>% add_model(lm_mod)
+wf_3 <- workflow() %>% add_recipe(rec_3) %>% add_model(lm_mod)
+
+# ---------------------------------------------Estimación 1---------------------------------------------------#   
+Reg2.1 <- wf_1 %>%
+  fit(data = train_aE4)
+test_pred2.1 <- predict(Reg1.1 , new_data = test_aE4) %>% 
+  bind_cols(test_aE4)
+test_rmse.2.1 <- rmse(test_pred2.1, truth = lPrecio, estimate = .pred)
+test_rmse.2.1$.estimate
+
+# ---------------------------------------------Estimación 2---------------------------------------------------#   
+Reg2.2 <- wf_2 %>%
+  fit(data = train_aE4)
+test_pred2.2 <- predict(Reg2.2 , new_data = test_aE4) %>% 
+  bind_cols(test_aE4)
+test_rmse.2.2 <- rmse(test_pred2.2, truth = lPrecio, estimate = .pred)
+test_rmse.2.2$.estimate
+
+# ---------------------------------------------Estimación 3---------------------------------------------------#   
+Reg2.3 <- wf_3 %>%
+  fit(data = train_aE4)
+Pred2.3_ols <- predict(Reg2.3 , new_data = test_aE4) %>% 
+  bind_cols(test_aE4)
+test_aE4$Predict_ols_a <- predict(Reg2.3, new_data = test_aE4)
+test_rmse.2.3 <- rmse(Pred2.3_ols, truth = lPrecio, estimate = .pred)
+test_rmse.2.3$.estimate
+tidy(Reg2.3)
+
+
+# ------------------------------------Precios Observados------------------------------ #
+Precio_casa_4 <- data.frame(test_cE4$property_id,test_cE4$Fecha, test_cE4$Precio)
+colnames(Precio_casa_4) <- c("property_id", "Fecha", "Precio")
+Precio_apart_4 <- data.frame(test_aE4$property_id,test_aE4$Fecha, test_aE4$Precio)
+colnames(Precio_apart_4) <- c("property_id", "Fecha","Precio")
+Precios_4 <- rbind(Precio_casa_4, Precio_apart_4)
+
+Precios_Prod_4 <- aggregate(Precios_4$Precio, by = list(Precios_4$Fecha), FUN = mean)
+colnames(Precios_Prod_4) <- c("Fecha", "Precio_Promedio")
+Precios_Prod_4$Tipo <- "Observado"
+
+
+# ------------------------------------Precios Predicciones OLS-------------------------- #
+Pred_casa_ols_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_ols))
+colnames(Pred_casa_ols_4) <- c("property_id", "Fecha", "Precio_Pred_OLS")
+Pred_apart_ols_4<- data.frame(test_aE4$property_id,test_aE4$Fecha, exp(test_aE4$Predict_ols_a))
+colnames(Pred_apart_ols_4) <- c("property_id", "Fecha", "Precio_Pred_OLS")
+Pred_ols_4 <- rbind(Pred_casa_ols_4, Pred_apart_ols_4)
+
+Precios_Prod_ols <- aggregate(Pred_ols_4$Precio, by = list(Pred_ols_4$Fecha), FUN = mean)
+colnames(Precios_Prod_ols) <- c("Fecha", "Precio_Promedio")
+Precios_Prod_ols$Tipo <- "Observado"
+
+
+g_ols <- ggplot() +
+  geom_line(data = Precios_Prod_4, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
+  geom_line(data = Precios_Prod_ols, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio OLS",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_ols
+
+
+# ---------------------------------------RIDGE---------------------------------------------- #
+# ---------------------------------------APARTAMENTOS----------------------------------------- #
+# Esto se utilizará para evaluar el rendimiento del modelo en diferentes subconjuntos de  datos durante la validación cruzada.
+
+
+train_aE4_fold <- vfold_cv(train_aE4, v = 5)
+
+ridge_recipe <- 
+  recipe(formula =lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+         + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_aE4) %>% 
+  step_interact(terms = ~ M2_por_Habitacion:Terraza + M2_por_Habitacion:Garaje) %>% 
+  step_novel(all_nominal_predictors()) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_zv(all_predictors()) %>% 
+  step_normalize(Habitaciones, Habitaciones2, Baños, M2_por_Habitacion)
+
+
+ridge_spec <- linear_reg(penalty = tune(), mixture = 0) %>%
+    set_mode("regression") %>%
+    set_engine("glmnet")
+
+
+ridge_workflow <- workflow() %>%
+  add_recipe(ridge_recipe) %>%
+  add_model(ridge_spec)
+
+# Definir una cuadrícula de valores de penalización utilizando 'grid_regular'
+penalty_grid <- grid_regular(penalty(range = c(-4, 1)), levels = 30)
+penalty_grid
+
+# Realizar la búsqueda de hiperparámetros utilizando 'tune_grid'
+tune_res <- tune_grid(
+  ridge_workflow,         # El flujo de trabajo que contiene: receta y especificación del modelo
+  resamples = train_aE4_fold,  # Folds de validación cruzada
+  grid = penalty_grid,        # Grilla de valores de penalización
+  metrics = metric_set(rmse)
+)
+tune_res
+
+
+# gráfico de los resultados de hiperparámetros
+autoplot(tune_res)
+collect_metrics(tune_res)
+
+best_penalty <- select_best(tune_res, metric = "rmse")
+best_penalty
+
+ridge_final <- finalize_workflow(ridge_workflow, best_penalty)
+Ridge_a <- fit(ridge_final, data = train_aE4)
+test_aE4$Predict_rgd_a <- predict(Ridge_a, new_data = test_aE4)
+
+# ---------------------------------------CASAS----------------------------------------- #
+# Esto se utilizará para evaluar el rendimiento del modelo en diferentes subconjuntos de  datos durante la validación cruzada.
+
+train_cE4_fold <- vfold_cv(train_cE4, v = 5)
+
+ridge_recipe_c <- 
+  recipe(formula =lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+         + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_cE4) %>% 
+  step_interact(terms = ~ M2_por_Habitacion:Terraza + M2_por_Habitacion:Garaje) %>% 
+  step_novel(all_nominal_predictors()) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_zv(all_predictors()) %>% 
+  step_normalize(Habitaciones, Habitaciones2, Baños, M2_por_Habitacion)
+
+ridge_spec_c <- linear_reg(penalty = tune(), mixture = 0) %>%
+  set_mode("regression") %>%
+  set_engine("glmnet")
+
+ridge_c_workflow <- workflow() %>%
+  add_recipe(ridge_recipe_c) %>%
+  add_model(ridge_spec_c)
+
+# Definir una cuadrícula de valores de penalización utilizando 'grid_regular'
+penalty_grid_c <- grid_regular(penalty(range = c(-4, 1)), levels = 30)
+penalty_grid_c
+
+# Realizar la búsqueda de hiperparámetros utilizando 'tune_grid'
+tune_res_c <- tune_grid(
+  ridge_c_workflow,         # El flujo de trabajo que contiene: receta y especificación del modelo
+  resamples = train_cE4_fold,  # Folds de validación cruzada
+  grid = penalty_grid_c,        # Grilla de valores de penalización
+  metrics = metric_set(rmse)
+)
+tune_res_c
+
+# gráfico de los resultados de hiperparámetros
+autoplot(tune_res_c)
+collect_metrics(tune_res_c)
+
+best_penalty_c <- select_best(tune_res_c, metric = "rmse")
+best_penalty_c
+
+ridge_final_c <- finalize_workflow(ridge_c_workflow, best_penalty_c)
+Ridge_c <- fit(ridge_final_c, data = train_cE4)
+test_cE4$Predict_rgd_c <- predict(Ridge_c, new_data = test_cE4)
+
+
+# ------------------------------------Precios Predicciones RIDGE-------------------------- #
+Pred_casa_rgd_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_rgd_c))
+colnames(Pred_casa_rgd_4) <- c("property_id", "Fecha", "Precio_Pred_Ridge")
+Pred_apart_rgd_4<- data.frame(test_aE4$property_id, test_aE4$Fecha, exp(test_aE4$Predict_rgd_a))
+colnames(Pred_apart_rgd_4) <- c("property_id", "Fecha", "Precio_Pred_Ridge")
+Pred_rgd_4 <- rbind(Pred_casa_rgd_4, Pred_apart_rgd_4)
+
+Precios_Prod_rgd <- aggregate(Pred_rgd_4$Precio, by = list(Pred_rgd_4$Fecha), FUN = mean)
+colnames(Precios_Prod_rgd) <- c("Fecha", "Precio_Promedio")
+Precios_Prod_rgd$Tipo <- "Observado"
+
+
+g_rgd <- ggplot() +
+  geom_line(data = Precios_Prod_4, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
+  geom_line(data = Precios_Prod_rgd, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio Ridge",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_rgd
+
+
+# ------------------------------------------LASSO--------------------------------------------- #
+# ---------------------------------------APARTAMENTOS----------------------------------------- #
+
+lasso_recipe <- 
+  recipe(formula =lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+         + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_aE4) %>% 
+  step_interact(terms = ~ M2_por_Habitacion:Terraza + M2_por_Habitacion:Garaje) %>% 
+  step_novel(all_nominal_predictors()) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_zv(all_predictors()) %>% 
+  step_normalize(Habitaciones, Habitaciones2, Baños, M2_por_Habitacion)
+
+lasso_spec <- 
+  linear_reg(penalty = tune(), mixture = 1) %>%
+  set_mode("regression") %>%
+  set_engine("glmnet") 
+
+lasso_workflow <- workflow() %>%
+  add_recipe(lasso_recipe) %>%
+  add_model(lasso_spec)
+
+# Generar una cuadrícula de valores de penalización
+penalty_grid <- grid_regular(penalty(range = c(-2, 2)), levels = 50)
+
+# Hiperparámetros utilizando tune_grid
+tune_res_la <- tune_grid(lasso_workflow,resamples = train_aE4_fold, grid = penalty_grid,metrics = metric_set(rmse))
+autoplot(tune_res_la)
+
+best_penalty_la <- select_best(tune_res_la, metric = "rmse")
+lasso_final_a <- finalize_workflow(lasso_workflow, best_penalty_la)
+Lasso_a <- fit(lasso_final_a, data = train_aE4)
+test_aE4$Predict_ls_a <- predict(Lasso_a, new_data = test_aE4)
+
+# ---------------------------------------CASAS----------------------------------------- #
+
+lasso_recipe_c <- 
+  recipe(formula =lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+         + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_aE4) %>% 
+  step_interact(terms = ~ M2_por_Habitacion:Terraza + M2_por_Habitacion:Garaje) %>% 
+  step_novel(all_nominal_predictors()) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_zv(all_predictors()) %>% 
+  step_normalize(Habitaciones, Habitaciones2, Baños, M2_por_Habitacion)
+
+lasso_spec_c <- 
+  linear_reg(penalty = tune(), mixture = 1) %>%
+  set_mode("regression") %>%
+  set_engine("glmnet") 
+
+lasso_c_workflow <- workflow() %>%
+  add_recipe(lasso_recipe_c) %>%
+  add_model(lasso_spec_c)
+
+# Generar una cuadrícula de valores de penalización
+penalty_grid_lc <- grid_regular(penalty(range = c(-2, 2)), levels = 50)
+
+# Hiperparámetros utilizando tune_grid
+tune_res_lc <- tune_grid(lasso_c_workflow, resamples = train_cE4_fold, grid = penalty_grid_lc, metrics = metric_set(rmse))
+autoplot(tune_res_lc)
+
+best_penalty_lc <- select_best(tune_res_lc, metric = "rmse")
+lasso_final_c <- finalize_workflow(lasso_c_workflow, best_penalty_lc)
+Lasso_c <- fit(lasso_final_c, data = train_cE4)
+test_cE4$Predict_ls_c <- predict(Lasso_c, new_data = test_cE4)
+
+# ------------------------------------Precios Predicciones RIDGE-------------------------- #
+Pred_casa_ls_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_ls_c))
+colnames(Pred_casa_ls_4) <- c("property_id", "Fecha", "Precio_Pred_Lasso")
+Pred_apart_ls_4<- data.frame(test_aE4$property_id, test_aE4$Fecha, exp(test_aE4$Predict_ls_a))
+colnames(Pred_apart_ls_4) <- c("property_id", "Fecha", "Precio_Pred_Lasso")
+Pred_ls_4 <- rbind(Pred_casa_ls_4, Pred_apart_ls_4)
+
+Precios_Prod_ls <- aggregate(Pred_ls_4$Precio, by = list(Pred_ls_4$Fecha), FUN = mean)
+colnames(Precios_Prod_ls) <- c("Fecha", "Precio_Promedio")
+Precios_Prod_ls$Tipo <- "Observado"
+
+
+g_ls <- ggplot() +
+  geom_line(data = Precios_Prod_4, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
+  geom_line(data = Precios_Prod_ls, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio Lasso",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_ls
+
