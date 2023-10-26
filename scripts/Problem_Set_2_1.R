@@ -2157,8 +2157,8 @@ colnames(Pred_casas_rg) <- c("property_id", "Precio_Pred_rg")
 Pred_apart_rg <- data.frame(test_apart1$property_id, exp(predict(Model6, s = lambda_opt_apart, newx = Xa_test)))
 colnames(Pred_apart_rg) <- c("property_id", "Precio_Pred_rg")
 Pred_rg_fm <- rbind(Pred_casas_rg, Pred_apart_rg)
-tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos.xlsx"  
-write_xlsx(Pred_rg_fm, tabla_pronost)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos.xlsx"  
+#write_xlsx(Pred_rg_fm, tabla_pronost)
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA LASSO-----------------------------# 
 
@@ -2170,8 +2170,8 @@ colnames(Pred_casas_ls) <- c("property_id", "Precio_Pred_ls")
 Pred_apart_ls <- data.frame(test_apart1$property_id, exp(predict(Model7, s = lambda_opt_ls_apart, newx = Xa1_test)))
 colnames(Pred_apart_ls) <- c("property_id", "Precio_Pred_ls")
 Pred_ls_fm <- rbind(Pred_casas_ls, Pred_apart_ls)
-tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos.xlsx"  
-write_xlsx(Pred_ls_fm, tabla_pronost)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos.xlsx"  
+#write_xlsx(Pred_ls_fm, tabla_pronost)
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA ELASTIC NET-----------------------------# 
 
@@ -2183,10 +2183,10 @@ colnames(Pred_casas_en) <- c("property_id", "Precio_Pred_en")
 Pred_apart_en <- data.frame(test_apart1$property_id, exp(predict(Model8, s = lambda_opt_en_apart, newx = Xa2_test)))
 colnames(Pred_apart_en) <- c("property_id", "Precio_Pred_en")
 Pred_en_fm <- rbind(Pred_casas_en, Pred_apart_en)
-tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pronost_en.csv"  
-write.csv(x = Pred_en_fm,
-          file = paste0(tabla_pronost, 'Pronost_en.csv'),
-          row.names = FALSE)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pronost_en.csv"  
+#write.csv(x = Pred_en_fm,
+#file = paste0(tabla_pronost, 'Pronost_en.csv'),
+#row.names = FALSE)
 
 # ------------------------------ERRORES DENTRO DE MUESTRA MSE----------------------------------------# 
 # -------------------------------------------------------------------------------------------------- #
@@ -2247,10 +2247,6 @@ errores_mae <- data.frame(
 )
 
 print(errores_mae)
-
-
-tabla_error <- "C:/Output R/Taller 2/Taller_2/error.xlsx"  
-write_xlsx(Errores, tabla_error)
 
 
 
@@ -2315,14 +2311,18 @@ test_rmse.1.2$.estimate
 
 # ---------------------------------------------Estimación 3---------------------------------------------------#   
 Reg1.3 <- wf3 %>%
-  fit(data = train_cE4)
+  fit(data = train_casas_E4)
 Pred1.3_ols <- predict(Reg1.3 , new_data = test_cE4) %>% 
   bind_cols(test_cE4)
 test_rmse.1.3 <- rmse(Pred1.3_ols, truth = lPrecio, estimate = .pred)
 test_rmse.1.3$.estimate
 tidy(Reg1.3)
 test_cE4$Predict_ols<- Pred1.3_ols$.pred
-
+#-----------------------------------------------------------------------------------------------------------------
+Reg1.3_ <- wf3 %>%
+  fit(data = train_casas_E4)
+tidy(Reg1.3_)
+#-----------------------------------------------------------------------------------------------------------------
 
 lPrecios_Medios1 <- aggregate(test_cE4$lPrecio, by = list(test_cE4$Fecha), FUN = mean)
 colnames(lPrecios_Medios1) <- c("Fecha", "Precio_Promedio_Casas")
@@ -2408,13 +2408,20 @@ test_rmse.2.2$.estimate
 
 # ---------------------------------------------Estimación 3---------------------------------------------------#   
 Reg2.3 <- wf_3 %>%
-  fit(data = train_aE4)
+  fit(data = train_apart_E4)
 Pred2.3_ols <- predict(Reg2.3 , new_data = test_aE4) %>% 
   bind_cols(test_aE4)
 test_rmse.2.3 <- rmse(Pred2.3_ols, truth = lPrecio, estimate = .pred)
 test_rmse.2.3$.estimate
 tidy(Reg2.3)
 test_aE4$Predict_ols<- Pred2.3_ols$.pred
+
+#-----------------------------------------------------------------------------------------------------------------
+Reg2.3_ <- wf_3 %>%
+  fit(data = train_apart_E4)
+tidy(Reg2.3_)
+test_aE4$Predict_ols<- Pred2.3_ols$.pred
+#-----------------------------------------------------------------------------------------------------------------
 
 
 # ------------------------------------Precios Observados------------------------------ #
@@ -2460,7 +2467,7 @@ g_ols <- ggplot() +
 g_ols
 
 
-# ---------------------------------------RIDGE---------------------------------------------- #
+# ------------------------------------------RIDGE--------------------------------------------- #
 # ---------------------------------------APARTAMENTOS----------------------------------------- #
 # Esto se utilizará para evaluar el rendimiento del modelo en diferentes subconjuntos de  datos durante la validación cruzada.
 
@@ -2508,14 +2515,13 @@ best_penalty <- select_best(tune_res, metric = "rmse")
 best_penalty
 
 ridge_final <- finalize_workflow(ridge_workflow, best_penalty)
-Ridge_a <- fit(ridge_final, data = train_aE4)
+Ridge_a <- fit(ridge_final, data = train_apart_E4)
 test_aE4$Predict_rgd<- predict(Ridge_a, new_data = test_aE4)
 test_aE4$Predict_rgd <- unlist(test_aE4$Predict_rgd)
 test_aE4$Predict_rgd <- as.numeric(test_aE4$Predict_rgd)
 
-
-
-
+#--------------------------------------------------------------------------------------------------------
+Ridge_a_ <- fit(ridge_final, data = train_apart1)
 
 # ---------------------------------------CASAS----------------------------------------- #
 # Esto se utilizará para evaluar el rendimiento del modelo en diferentes subconjuntos de  datos durante la validación cruzada.
@@ -2560,11 +2566,13 @@ best_penalty_c <- select_best(tune_res_c, metric = "rmse")
 best_penalty_c
 
 ridge_final_c <- finalize_workflow(ridge_c_workflow, best_penalty_c)
-Ridge_c <- fit(ridge_final_c, data = train_cE4)
+Ridge_c <- fit(ridge_final_c, data = train_casas_E4)
 test_cE4$Predict_rgd <- predict(Ridge_c, new_data = test_cE4)
 test_cE4$Predict_rgd <- unlist(test_cE4$Predict_rgd)
 test_cE4$Predict_rgd <- as.numeric(test_cE4$Predict_rgd)
 
+#--------------------------------------------------------------------------------------------------------
+Ridge_c_ <- fit(ridge_final, data = train_apart1)
 
 # ------------------------------------Precios Predicciones RIDGE-------------------------- #
 Pred_casa_rgd_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_rgd))
@@ -2631,7 +2639,7 @@ autoplot(tune_res_la)
 
 best_penalty_la <- select_best(tune_res_la, metric = "rmse")
 lasso_final_a <- finalize_workflow(lasso_workflow, best_penalty_la)
-Lasso_a <- fit(lasso_final_a, data = train_aE4)
+Lasso_a <- fit(lasso_final_a, data = train_apart_E4)
 test_aE4$Predict_ls<- predict(Lasso_a, new_data = test_aE4)
 test_aE4$Predict_ls <- unlist(test_aE4$Predict_ls)
 test_aE4$Predict_ls <- as.numeric(test_aE4$Predict_ls)
@@ -2666,7 +2674,7 @@ autoplot(tune_res_lc)
 
 best_penalty_lc <- select_best(tune_res_lc, metric = "rmse")
 lasso_final_c <- finalize_workflow(lasso_c_workflow, best_penalty_lc)
-Lasso_c <- fit(lasso_final_c, data = train_cE4)
+Lasso_c <- fit(lasso_final_c, data = train_casas_E4)
 test_cE4$Predict_ls<- predict(Lasso_c, new_data = test_cE4)
 test_cE4$Predict_ls <- unlist(test_cE4$Predict_ls)
 test_cE4$Predict_ls <- as.numeric(test_cE4$Predict_ls)
@@ -2733,7 +2741,7 @@ autoplot(tune_res_en)
 
 best_penalty_en <- select_best(tune_res_en, metric = "rmse")
 elasNet_final <- finalize_workflow(elasNet_workflow, best_penalty_en)
-elasNet_a <- fit(elasNet_final, data = train_aE4)
+elasNet_a <- fit(elasNet_final, data = train_apart_E4)
 test_aE4$Predict_en<- predict(elasNet_a, new_data = test_aE4)
 test_aE4$Predict_en <- unlist(test_aE4$Predict_en)
 test_aE4$Predict_en <- as.numeric(test_aE4$Predict_en)
@@ -2767,7 +2775,7 @@ autoplot(tune_res_en_c)
 
 best_penalty_en_c <- select_best(tune_res_en_c, metric = "rmse")
 elasNet_final_c <- finalize_workflow(elasNet_c_workflow, best_penalty_en_c)
-elasNet_c <- fit(elasNet_final_c, data = train_cE4)
+elasNet_c <- fit(elasNet_final_c, data = train_casas_E4)
 test_cE4$Predict_en <- predict(elasNet_c, new_data = test_cE4)
 test_cE4$Predict_en <- unlist(test_cE4$Predict_en)
 test_cE4$Predict_en <- as.numeric(test_cE4$Predict_en)
@@ -2822,14 +2830,14 @@ print(Errores_MAE)
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA OLS-------------------------------# 
 
-Pred_casas_ols4 <- data.frame(test_casas1$property_id, exp(predict(Reg1.3, new_data = test_casas1)))
-colnames(Pred_casas_ols4) <- c("property_id", "Precio_Pred_ols")
-Pred_apart_ols4 <- data.frame(test_apart1$property_id, exp(predict(Reg2.3, new_data = test_apart1)))
-colnames(Pred_apart_ols4) <- c("property_id", "Precio_Pred_ols")
+Pred_casas_ols4 <- data.frame(test_casas1$property_id, exp(predict(Reg1.3_, new_data = test_casas1)))
+colnames(Pred_casas_ols4) <- c("property_id", "Precio_Pred_ols1")
+Pred_apart_ols4 <- data.frame(test_apart1$property_id, exp(predict(Reg2.3_, new_data = test_apart1)))
+colnames(Pred_apart_ols4) <- c("property_id", "Precio_Pred_ols1")
 Pred_ols_fm4 <- rbind(Pred_casas_ols4, Pred_apart_ols4)
-tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_ols.csv"  
-write.csv(x = Pred_ols_fm,
-          file = paste0(tabla_pronost, 'Pred_ols.csv'),
+tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_ols1.csv"  
+write.csv(x = Pred_ols_fm4,
+          file = paste0(tabla_pronost, 'Pred_ols1.csv'),
           row.names = FALSE)
 
 
@@ -2840,9 +2848,9 @@ colnames(Pred_casas_rgd4) <- c("property_id", "Precio_Pred_rgd")
 Pred_apart_rgd4 <- data.frame(test_apart1$property_id, exp(predict(Ridge_a, new_data = test_apart1)))
 colnames(Pred_apart_rgd4) <- c("property_id", "Precio_Pred_rgd")
 Pred_rgd_fm4 <- rbind(Pred_casas_rgd4, Pred_apart_rgd4)
-tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_rgd.csv"  
+tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_rgd1.csv"  
 write.csv(x = Pred_rgd_fm4,
-          file = paste0(tabla_pronost, 'Pred_rgd.csv'),
+          file = paste0(tabla_pronost, 'Pred_rgd1.csv'),
           row.names = FALSE)
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA LASSO-----------------------------# 
@@ -2852,7 +2860,7 @@ colnames(Pred_casas_ls4) <- c("property_id", "Precio_Pred_ls")
 Pred_apart_ls4 <- data.frame(test_apart1$property_id, exp(predict(Lasso_a, new_data = test_apart1)))
 colnames(Pred_apart_ls4) <- c("property_id", "Precio_Pred_ls")
 Pred_ls_fm4 <- rbind(Pred_casas_ls4, Pred_apart_ls4)
-tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_ls.csv"  
+tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_ls1.csv"  
 write.csv(x = Pred_ls_fm4,
           file = paste0(tabla_pronost, 'Pred_ls.csv'),
           row.names = FALSE)
@@ -2864,7 +2872,7 @@ colnames(Pred_casas_en4) <- c("property_id", "Precio_Pred_en")
 Pred_apart_en4 <- data.frame(test_apart1$property_id, exp(predict(elasNet_a, new_data = test_apart1)))
 colnames(Pred_apart_en4) <- c("property_id", "Precio_Pred_en")
 Pred_en_fm4 <- rbind(Pred_casas_en4, Pred_apart_en4)
-tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_en.csv"  
+tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_en1.csv"  
 write.csv(x = Pred_en_fm4,
           file = paste0(tabla_pronost, 'Pred_en.csv'),
           row.names = FALSE)
