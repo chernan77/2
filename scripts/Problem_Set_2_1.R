@@ -2318,18 +2318,18 @@ Reg1.3 <- wf3 %>%
   fit(data = train_cE4)
 Pred1.3_ols <- predict(Reg1.3 , new_data = test_cE4) %>% 
   bind_cols(test_cE4)
-test_cE4$Predict_ols <- predict(Reg1.3, new_data = test_cE4)
-
 test_rmse.1.3 <- rmse(Pred1.3_ols, truth = lPrecio, estimate = .pred)
 test_rmse.1.3$.estimate
 tidy(Reg1.3)
+test_cE4$Predict_ols<- Pred1.3_ols$.pred
+
 
 lPrecios_Medios1 <- aggregate(test_cE4$lPrecio, by = list(test_cE4$Fecha), FUN = mean)
 colnames(lPrecios_Medios1) <- c("Fecha", "Precio_Promedio_Casas")
 lPrecios_Medios1$Tipo <- "Observado"
 
 lPrecios_Medios1_pred_ols <- aggregate(test_cE4$Predict_ols, by = list(test_cE4$Fecha), FUN = mean)
-colnames(lPrecios_Medios1_pred_ols ) <- c("Fecha", "Precio_Promedio_Casas")
+colnames(lPrecios_Medios1_pred_ols) <- c("Fecha", "Precio_Promedio_Casas")
 lPrecios_Medios1_pred_ols$Tipo <- "Predicción"
 
 
@@ -2411,10 +2411,10 @@ Reg2.3 <- wf_3 %>%
   fit(data = train_aE4)
 Pred2.3_ols <- predict(Reg2.3 , new_data = test_aE4) %>% 
   bind_cols(test_aE4)
-test_aE4$Predict_ols_a <- predict(Reg2.3, new_data = test_aE4)
 test_rmse.2.3 <- rmse(Pred2.3_ols, truth = lPrecio, estimate = .pred)
 test_rmse.2.3$.estimate
 tidy(Reg2.3)
+test_aE4$Predict_ols<- Pred2.3_ols$.pred
 
 
 # ------------------------------------Precios Observados------------------------------ #
@@ -2432,7 +2432,7 @@ Precios_Prod_4$Tipo <- "Observado"
 # ------------------------------------Precios Predicciones OLS-------------------------- #
 Pred_casa_ols_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_ols))
 colnames(Pred_casa_ols_4) <- c("property_id", "Fecha", "Precio_Pred_OLS")
-Pred_apart_ols_4<- data.frame(test_aE4$property_id,test_aE4$Fecha, exp(test_aE4$Predict_ols_a))
+Pred_apart_ols_4<- data.frame(test_aE4$property_id,test_aE4$Fecha, exp(test_aE4$Predict_ols))
 colnames(Pred_apart_ols_4) <- c("property_id", "Fecha", "Precio_Pred_OLS")
 Pred_ols_4 <- rbind(Pred_casa_ols_4, Pred_apart_ols_4)
 
@@ -2509,7 +2509,10 @@ best_penalty
 
 ridge_final <- finalize_workflow(ridge_workflow, best_penalty)
 Ridge_a <- fit(ridge_final, data = train_aE4)
-test_aE4$Predict_rgd_a <- predict(Ridge_a, new_data = test_aE4)
+test_aE4$Predict_rgd<- predict(Ridge_a, new_data = test_aE4)
+test_aE4$Predict_rgd <- unlist(test_aE4$Predict_rgd)
+test_aE4$Predict_rgd <- as.numeric(test_aE4$Predict_rgd)
+
 
 # ---------------------------------------CASAS----------------------------------------- #
 # Esto se utilizará para evaluar el rendimiento del modelo en diferentes subconjuntos de  datos durante la validación cruzada.
@@ -2555,13 +2558,16 @@ best_penalty_c
 
 ridge_final_c <- finalize_workflow(ridge_c_workflow, best_penalty_c)
 Ridge_c <- fit(ridge_final_c, data = train_cE4)
-test_cE4$Predict_rgd_c <- predict(Ridge_c, new_data = test_cE4)
+test_cE4$Predict_rgd <- predict(Ridge_c, new_data = test_cE4)
+test_cE4$Predict_rgd <- unlist(test_cE4$Predict_rgd)
+test_cE4$Predict_rgd <- as.numeric(test_cE4$Predict_rgd)
+
 
 
 # ------------------------------------Precios Predicciones RIDGE-------------------------- #
-Pred_casa_rgd_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_rgd_c))
+Pred_casa_rgd_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_rgd))
 colnames(Pred_casa_rgd_4) <- c("property_id", "Fecha", "Precio_Pred_Ridge")
-Pred_apart_rgd_4<- data.frame(test_aE4$property_id, test_aE4$Fecha, exp(test_aE4$Predict_rgd_a))
+Pred_apart_rgd_4<- data.frame(test_aE4$property_id, test_aE4$Fecha, exp(test_aE4$Predict_rgd))
 colnames(Pred_apart_rgd_4) <- c("property_id", "Fecha", "Precio_Pred_Ridge")
 Pred_rgd_4 <- rbind(Pred_casa_rgd_4, Pred_apart_rgd_4)
 
@@ -2620,13 +2626,16 @@ autoplot(tune_res_la)
 best_penalty_la <- select_best(tune_res_la, metric = "rmse")
 lasso_final_a <- finalize_workflow(lasso_workflow, best_penalty_la)
 Lasso_a <- fit(lasso_final_a, data = train_aE4)
-test_aE4$Predict_ls_a <- predict(Lasso_a, new_data = test_aE4)
+test_aE4$Predict_ls<- predict(Lasso_a, new_data = test_aE4)
+test_aE4$Predict_ls <- unlist(test_aE4$Predict_ls)
+test_aE4$Predict_ls <- as.numeric(test_aE4$Predict_ls)
+
 
 # ---------------------------------------CASAS----------------------------------------- #
 
 lasso_recipe_c <- 
   recipe(formula =lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
-         + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_aE4) %>% 
+         + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_cE4) %>% 
   step_interact(terms = ~ M2_por_Habitacion:Terraza + M2_por_Habitacion:Garaje) %>% 
   step_novel(all_nominal_predictors()) %>% 
   step_dummy(all_nominal_predictors()) %>% 
@@ -2652,12 +2661,15 @@ autoplot(tune_res_lc)
 best_penalty_lc <- select_best(tune_res_lc, metric = "rmse")
 lasso_final_c <- finalize_workflow(lasso_c_workflow, best_penalty_lc)
 Lasso_c <- fit(lasso_final_c, data = train_cE4)
-test_cE4$Predict_ls_c <- predict(Lasso_c, new_data = test_cE4)
+test_cE4$Predict_ls<- predict(Lasso_c, new_data = test_cE4)
+test_cE4$Predict_ls <- unlist(test_cE4$Predict_ls)
+test_cE4$Predict_ls <- as.numeric(test_cE4$Predict_ls)
 
-# ------------------------------------Precios Predicciones RIDGE-------------------------- #
-Pred_casa_ls_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_ls_c))
+
+# ------------------------------------Precios Predicciones Lasso-------------------------- #
+Pred_casa_ls_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_ls))
 colnames(Pred_casa_ls_4) <- c("property_id", "Fecha", "Precio_Pred_Lasso")
-Pred_apart_ls_4<- data.frame(test_aE4$property_id, test_aE4$Fecha, exp(test_aE4$Predict_ls_a))
+Pred_apart_ls_4<- data.frame(test_aE4$property_id, test_aE4$Fecha, exp(test_aE4$Predict_ls))
 colnames(Pred_apart_ls_4) <- c("property_id", "Fecha", "Precio_Pred_Lasso")
 Pred_ls_4 <- rbind(Pred_casa_ls_4, Pred_apart_ls_4)
 
@@ -2684,3 +2696,128 @@ g_ls <- ggplot() +
   )
 g_ls
 
+
+# ------------------------------------------ELASTIC NET----------------------------------------- #
+# ---------------------------------------APARTAMENTOS----------------------------------------- #
+
+elasNet_recipe <- 
+  recipe(formula =lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+         + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_aE4) %>% 
+  step_interact(terms = ~ M2_por_Habitacion:Terraza + M2_por_Habitacion:Garaje) %>% 
+  step_novel(all_nominal_predictors()) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_zv(all_predictors()) %>% 
+  step_normalize(Habitaciones, Habitaciones2, Baños, M2_por_Habitacion)
+
+elasNet_spec <- 
+  linear_reg(penalty = tune(), mixture = 0.5) %>%
+  set_mode("regression") %>%
+  set_engine("glmnet") 
+
+elasNet_workflow <- workflow() %>%
+  add_recipe(elasNet_recipe) %>%
+  add_model(elasNet_spec)
+
+# Generar una cuadrícula de valores de penalización
+penalty_grid_en <- grid_regular(penalty(range = c(-2, 2)), levels = 50)
+
+# Hiperparámetros utilizando tune_grid
+tune_res_en <- tune_grid(elasNet_workflow, resamples = train_aE4_fold, grid = penalty_grid_en, metrics = metric_set(rmse))
+autoplot(tune_res_en)
+
+best_penalty_en <- select_best(tune_res_en, metric = "rmse")
+elasNet_final <- finalize_workflow(elasNet_workflow, best_penalty_en)
+elasNet_a <- fit(elasNet_final, data = train_aE4)
+test_aE4$Predict_en<- predict(elasNet_a, new_data = test_aE4)
+test_aE4$Predict_en <- unlist(test_aE4$Predict_en)
+test_aE4$Predict_en <- as.numeric(test_aE4$Predict_en)
+
+# ---------------------------------------CASAS----------------------------------------- #
+
+elasNet_recipe_c <- 
+  recipe(formula =lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+         + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_cE4) %>% 
+  step_interact(terms = ~ M2_por_Habitacion:Terraza + M2_por_Habitacion:Garaje) %>% 
+  step_novel(all_nominal_predictors()) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_zv(all_predictors()) %>% 
+  step_normalize(Habitaciones, Habitaciones2, Baños, M2_por_Habitacion)
+
+elasNet_spec_c <- 
+  linear_reg(penalty = tune(), mixture = 0.5) %>%
+  set_mode("regression") %>%
+  set_engine("glmnet") 
+
+elasNet_c_workflow <- workflow() %>%
+  add_recipe(elasNet_recipe_c) %>%
+  add_model(elasNet_spec_c)
+
+# Generar una cuadrícula de valores de penalización
+penalty_grid_en_c <- grid_regular(penalty(range = c(-2, 2)), levels = 50)
+
+# Hiperparámetros utilizando tune_grid
+tune_res_en_c <- tune_grid(elasNet_c_workflow, resamples = train_cE4_fold, grid = penalty_grid_en_c, metrics = metric_set(rmse))
+autoplot(tune_res_en_c)
+
+best_penalty_en_c <- select_best(tune_res_en_c, metric = "rmse")
+elasNet_final_c <- finalize_workflow(elasNet_c_workflow, best_penalty_en_c)
+elasNet_c <- fit(elasNet_final_c, data = train_cE4)
+test_cE4$Predict_en <- predict(elasNet_c, new_data = test_cE4)
+test_cE4$Predict_en <- unlist(test_cE4$Predict_en)
+test_cE4$Predict_en <- as.numeric(test_cE4$Predict_en)
+
+
+# ------------------------------------Precios Predicciones Elastic Net-------------------------- #
+Pred_casa_en_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_en))
+colnames(Pred_casa_en_4) <- c("property_id", "Fecha", "Precio_Pred_Elastic_Net")
+Pred_apart_en_4<- data.frame(test_aE4$property_id, test_aE4$Fecha, exp(test_aE4$Predict_en))
+colnames(Pred_apart_en_4) <- c("property_id", "Fecha", "Precio_Pred_Elastic_Net")
+Pred_en_4 <- rbind(Pred_casa_en_4, Pred_apart_en_4)
+
+Precios_Prod_en <- aggregate(Pred_en_4$Precio, by = list(Pred_en_4$Fecha), FUN = mean)
+colnames(Precios_Prod_en) <- c("Fecha", "Precio_Promedio")
+Precios_Prod_en$Tipo <- "Observado"
+
+
+g_en <- ggplot() +
+  geom_line(data = Precios_Prod_4, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
+  geom_line(data = Precios_Prod_en, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio Elastic Net",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_en
+
+# --------------------ERRORES DE PREDICCION FUERA DE MUESTRA-------------------------- #
+
+test_E4 <- rbind(test_aE4, test_cE4)
+
+MAE_1 <- mean(abs(exp(test_E4$Predict_ols) - test_E4$Precio))
+MAE_2 <- mean(abs(exp(test_E4$Predict_rgd) - test_E4$Precio))
+MAE_3 <- mean(abs(exp(test_E4$Predict_ls) - test_E4$Precio))
+MAE_4 <- mean(abs(exp(test_E4$Predict_en) - test_E4$Precio))
+
+
+
+
+# Luego puedes almacenar los resultados en un dataframe
+Errores_MAE <- data.frame(
+  Modelo = c("OLS", "Ridge", "Lasso", "Elastic_Net"),
+  MAE = c(MAE_1, MAE_2, MAE_3, MAE_4)
+)
+
+print(Errores_MAE)
+
+
+
+tabla_test4 <- "C:/Output R/Taller 2/Taller_2/Testa4.xlsx"  
+write_xlsx(test_aE4, tabla_test4)
