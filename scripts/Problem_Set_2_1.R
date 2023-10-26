@@ -2514,6 +2514,9 @@ test_aE4$Predict_rgd <- unlist(test_aE4$Predict_rgd)
 test_aE4$Predict_rgd <- as.numeric(test_aE4$Predict_rgd)
 
 
+
+
+
 # ---------------------------------------CASAS----------------------------------------- #
 # Esto se utilizará para evaluar el rendimiento del modelo en diferentes subconjuntos de  datos durante la validación cruzada.
 
@@ -2563,7 +2566,6 @@ test_cE4$Predict_rgd <- unlist(test_cE4$Predict_rgd)
 test_cE4$Predict_rgd <- as.numeric(test_cE4$Predict_rgd)
 
 
-
 # ------------------------------------Precios Predicciones RIDGE-------------------------- #
 Pred_casa_rgd_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_rgd))
 colnames(Pred_casa_rgd_4) <- c("property_id", "Fecha", "Precio_Pred_Ridge")
@@ -2593,6 +2595,10 @@ g_rgd <- ggplot() +
     panel.grid = element_line(color = "gray")
   )
 g_rgd
+
+
+
+
 
 
 # ------------------------------------------LASSO--------------------------------------------- #
@@ -2814,7 +2820,51 @@ Errores_MAE <- data.frame(
 
 print(Errores_MAE)
 
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA OLS-------------------------------# 
+
+Pred_casas_ols4 <- data.frame(test_casas1$property_id, exp(predict(Reg1.3, new_data = test_casas1)))
+colnames(Pred_casas_ols4) <- c("property_id", "Precio_Pred_ols")
+Pred_apart_ols4 <- data.frame(test_apart1$property_id, exp(predict(Reg2.3, new_data = test_apart1)))
+colnames(Pred_apart_ols4) <- c("property_id", "Precio_Pred_ols")
+Pred_ols_fm4 <- rbind(Pred_casas_ols4, Pred_apart_ols4)
+tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_ols.csv"  
+write.csv(x = Pred_ols_fm,
+          file = paste0(tabla_pronost, 'Pred_ols.csv'),
+          row.names = FALSE)
 
 
-tabla_test4 <- "C:/Output R/Taller 2/Taller_2/Testa4.xlsx"  
-write_xlsx(test_aE4, tabla_test4)
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA RIDGE-----------------------------# 
+
+Pred_casas_rgd4 <- data.frame(test_casas1$property_id, exp(predict(Ridge_c, new_data = test_casas1)))
+colnames(Pred_casas_rgd4) <- c("property_id", "Precio_Pred_rgd")
+Pred_apart_rgd4 <- data.frame(test_apart1$property_id, exp(predict(Ridge_a, new_data = test_apart1)))
+colnames(Pred_apart_rgd4) <- c("property_id", "Precio_Pred_rgd")
+Pred_rgd_fm4 <- rbind(Pred_casas_rgd4, Pred_apart_rgd4)
+tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_rgd.csv"  
+write.csv(x = Pred_rgd_fm4,
+          file = paste0(tabla_pronost, 'Pred_rgd.csv'),
+          row.names = FALSE)
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA LASSO-----------------------------# 
+
+Pred_casas_ls4 <- data.frame(test_casas1$property_id, exp(predict(Lasso_c,  new_data = test_casas1)))
+colnames(Pred_casas_ls4) <- c("property_id", "Precio_Pred_ls")
+Pred_apart_ls4 <- data.frame(test_apart1$property_id, exp(predict(Lasso_a, new_data = test_apart1)))
+colnames(Pred_apart_ls4) <- c("property_id", "Precio_Pred_ls")
+Pred_ls_fm4 <- rbind(Pred_casas_ls4, Pred_apart_ls4)
+tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_ls.csv"  
+write.csv(x = Pred_ls_fm4,
+          file = paste0(tabla_pronost, 'Pred_ls.csv'),
+          row.names = FALSE)
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA ELASTIC NET-----------------------------# 
+
+Pred_casas_en4 <- data.frame(test_casas1$property_id, exp(predict(elasNet_c, new_data = test_casas1)))
+colnames(Pred_casas_en4) <- c("property_id", "Precio_Pred_en")
+Pred_apart_en4 <- data.frame(test_apart1$property_id, exp(predict(elasNet_a, new_data = test_apart1)))
+colnames(Pred_apart_en4) <- c("property_id", "Precio_Pred_en")
+Pred_en_fm4 <- rbind(Pred_casas_en4, Pred_apart_en4)
+tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_en.csv"  
+write.csv(x = Pred_en_fm4,
+          file = paste0(tabla_pronost, 'Pred_en.csv'),
+          row.names = FALSE)
