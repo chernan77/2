@@ -1669,7 +1669,6 @@ train_casas1 <- data.frame()
 train_apart1 <- data.frame()
 test_casas1 <- data.frame()
 test_apart1 <- data.frame()
-
 # Download and read each Excel file
 for (url in excel_urls) {
   temp_file <- tempfile(fileext = ".xlsx")
@@ -1688,6 +1687,7 @@ for (url in excel_urls) {
   # Clean up by removing the temporary file
   file.remove(temp_file)
 }
+combined_train <- rbind(train_apart1, train_casas1)
 
 # -------------------------------CREACION DE OTRAS VARIABLES-------------------------- # 
 train_casas1$M2_por_Habitacion<- train_casas1$Area/train_casas1$Habitaciones
@@ -2100,6 +2100,16 @@ test_apart1$month <- as.character(test_apart1$month)
 test_apart1$Fecha <- as.Date(paste0(test_apart1$year, "-", test_apart1$month, "-01"))
 test_apart1$Fecha <- as.Date(test_apart1$Fecha)
 
+
+### --------------------------------------Combined_train --------------------------------#
+
+combined_train$Habitaciones2 <- combined_train$Habitaciones^2
+combined_train$M2_por_Habitacion_Garaje <- combined_train$M2_por_Habitación * combined_train$Garaje
+combined_train$Sala_BBQ_terraza <- combined_train$Sala_BBQ * combined_train$Terraza
+combined_train$year <- as.character(combined_train$year)
+combined_train$month <- as.character(combined_train$month)
+combined_train$Fecha <- as.Date(paste0(combined_train$year, "-", combined_train$month, "-01"))
+combined_train$Fecha <- as.Date(combined_train$Fecha)
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA OLS-------------------------------# 
 
 Pred_casas_ols <- data.frame(test_casas1$property_id, exp(predict(Model1, newdata = test_casas1)))
@@ -2160,7 +2170,6 @@ library(ipred)
 library(caret)
 install.packages("rpart.plot")
 library(rpart.plot)
-
 
 fitControl<-trainControl(method ="cv",
                          number=5)
@@ -2485,6 +2494,8 @@ print(errores_df)
 ################################### PREDICCIÓNES DE LAS CASAS #######################################################
 
 lPrecios_promedio1c <- aggregate(train_casas1$lPrecio, by = list(train_casas1$Fecha), FUN = mean)
+colnames(lPrecios_promedio1c) <- c("Fecha", "Precio_Promedio_Casa")
+lPrecios_promedio1c$Tipo <- "Observado"
 
 fitControl<-trainControl(method ="cv",
                          number=5)
@@ -2508,7 +2519,7 @@ lPred_arbol1c$Tipo <- "Predicción"
 
 
 g_1c <- ggplot() +
-  geom_line(data = lPrecios_promedio1c, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
+  geom_line(data = lPrecios_promedio1c, aes(x = Fecha, y =Precio_Promedio_Casa, color = "Observado"), size = 1) +
   geom_line(data = lPred_arbol1c, aes(x = Fecha, y = Precio_Promedio_Casa, color = "Predicción"), size = 1) +
   labs(
     title = "Evolución Precios Promedio de Apart Arboles",
@@ -2553,7 +2564,7 @@ lPred_arbol2c$Tipo <- "Predicción"
 
 
 g_2c <- ggplot() +
-  geom_line(data = lPrecios_promedio1c, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
+  geom_line(data = lPrecios_promedio1c, aes(x = Fecha, y = Precio_Promedio_Casa, color = "Observado"), size = 1) +
   geom_line(data = lPred_arbol2c, aes(x = Fecha, y = Precio_Promedio_Casa, color = "Predicción"), size = 1) +
   labs(
     title = "Evolución Precios Promedio de Apart Arboles",
@@ -2588,7 +2599,7 @@ colnames(lPred_arbol3c) <- c("Fecha", "Precio_Promedio_Casa")
 lPred_arbol3c$Tipo <- "Predicción"
 
 g_3c<- ggplot() +
-  geom_line(data = lPrecios_promedio1c, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
+  geom_line(data = lPrecios_promedio1c, aes(x = Fecha, y = Precio_Promedio_Casa, color = "Observado"), size = 1) +
   geom_line(data = lPred_arbol3c, aes(x = Fecha, y = Precio_Promedio_Casa, color = "Predicción"), size = 1) +
   labs(
     title = "Evolución Precios Promedio de Apart Arboles",
@@ -2623,12 +2634,12 @@ prp(tree_rpart2_robc$finalModel, under = TRUE, branch.lty = 2, yesno = 2, faclen
 train_casas1$Pred_arbol4c <- predict(tree_rpart2_robc$finalModel, newdata = train_casas1)
 
 lPred_arbol4c <- aggregate(train_casas1$Pred_arbol4c, by = list(train_casas1$Fecha), FUN = mean)
-colnames(lPred_arbol4c) <- c("Fecha", "Precio_Promedio_Apart")
+colnames(lPred_arbol4c) <- c("Fecha", "Precio_Promedio_Casa")
 lPred_arbol4c$Tipo <- "Predicción"
 
 g_4c <- ggplot() +
-  geom_line(data = lPrecios_promedio1c, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
-  geom_line(data = lPred_arbol4c, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
+  geom_line(data = lPrecios_promedio1c, aes(x = Fecha, y = Precio_Promedio_Casa, color = "Observado"), size = 1) +
+  geom_line(data = lPred_arbol4c, aes(x = Fecha, y = Precio_Promedio_Casa, color = "Predicción"), size = 1) +
   labs(
     title = "Evolución Precios Promedio de Apart Arboles",
     x = "Fecha",
@@ -2662,12 +2673,12 @@ prp(tree_rpart2_rob_samplec$finalModel, under = TRUE, branch.lty = 2, yesno = 2,
 train_casas1$Pred_arbol5c <- predict(tree_rpart2_rob_samplec$finalModel, newdata = train_casas1)
 
 lPred_arbol5c <- aggregate(train_casas1$Pred_arbol5c, by = list(train_casas1$Fecha), FUN = mean)
-colnames(lPred_arbol5c) <- c("Fecha", "Precio_Promedio_Apart")
+colnames(lPred_arbol5c) <- c("Fecha", "Precio_Promedio_Casa")
 lPred_arbol5c$Tipo <- "Predicción"
 
 g_5c <- ggplot() +
-  geom_line(data = lPrecios_promedio1c, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
-  geom_line(data = lPred_arbol5c, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
+  geom_line(data = lPrecios_promedio1c, aes(x = Fecha, y = Precio_Promedio_Casa, color = "Observado"), size = 1) +
+  geom_line(data = lPred_arbol5c, aes(x = Fecha, y = Precio_Promedio_Casa, color = "Predicción"), size = 1) +
   labs(
     title = "Evolución Precios Promedio de Apart Arboles",
     x = "Fecha",
@@ -2684,8 +2695,8 @@ g_5c <- ggplot() +
 g_5c
 
 ######  RAMDOM FOREST
-p_load("ranger")
-p_load("randomForest")
+#p_load("ranger")
+#p_load("randomForest")
 
 set.seed(123)
 
@@ -2705,12 +2716,12 @@ tree_rangerc
 train_casas1$Pred_rangerc <- predict(tree_rangerc, newdata = train_casas1)
 
 lPred_rangerc <- aggregate(train_casas1$Pred_rangerc, by = list(train_casas1$Fecha), FUN = mean)
-colnames(lPred_rangerc) <- c("Fecha", "Precio_Promedio_Apart")
+colnames(lPred_rangerc) <- c("Fecha", "Precio_Promedio_Casa")
 lPred_rangerc$Tipo <- "Predicción (ranger)"
 
 g_6c <- ggplot() +
-  geom_line(data = lPrecios_promedio1c, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
-  geom_line(data = lPred_rangerc, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Predicción"), size = 1) +
+  geom_line(data = lPrecios_promedio1c, aes(x = Fecha, y = Precio_Promedio_Casa, color = "Observado"), size = 1) +
+  geom_line(data = lPred_rangerc, aes(x = Fecha, y = Precio_Promedio_Casa, color = "Predicción"), size = 1) +
   labs(
     title = "Evolución Precios Promedio de Apart Arboles",
     x = "Fecha",
@@ -2749,7 +2760,7 @@ colnames(lPred_ranger_gridc ) <- c("Fecha", "Precio_Promedio_Casa")
 lPred_ranger_gridc $Tipo <- "Predicción"
 
 g_7c <- ggplot() +
-  geom_line(data = lPrecios_promedio1c, aes(x = Fecha, y = Precio_Promedio_Apart, color = "Observado"), size = 1) +
+  geom_line(data = lPrecios_promedio1c, aes(x = Fecha, y = Precio_Promedio_Casa, color = "Observado"), size = 1) +
   geom_line(data = lPred_ranger_gridc, aes(x = Fecha, y = Precio_Promedio_Casa, color = "Predicción"), size = 1) +
   labs(
     title = "Evolución Precios Promedio de Apart Arboles",
@@ -2828,6 +2839,7 @@ test_apart1$year <- as.character(test_apart1$year)
 test_apart1$month <- as.character(test_apart1$month)
 test_apart1$Fecha <- as.Date(paste0(test_apart1$year, "-", test_apart1$month, "-01"))
 test_apart1$Fecha <- as.Date(test_apart1$Fecha)
+combined_data <- rbind(test_apart1, test_casas1)
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA OLS-------------------------------# 
 
@@ -2835,10 +2847,96 @@ Pred_casas_ols <- exp(predict(Model1, newdata = test_casas1))
 Pred_apart_ols <- exp(predict(Model5, newdata = test_apart1))
 submission_template$Pred_ols_fm <- c(Pred_casas_ols, Pred_apart_ols)
 
-######################################## Predicciones Casas #####################################################
+######################################## Predicciones dentro de muestras TRAIN####################################
 
 ##########################################Arbol 1#######################################################
+Pred_casa_arb1 <- data.frame(train_casas1$property_id, exp(predict(tree_rpart2c, newdata = train_casas1)))
+colnames(Pred_casa_arb1) <- c("property_id", "Pred_arb1")
+Pred_apart_arb1 <- data.frame(train_apart1$property_id, exp(predict(tree_rpart2, newdata = train_apart1)))
+colnames(Pred_apart_arb1) <- c("property_id", "Pred_arb1")
+Pred_arbol_fm1t<- rbind(Pred_casa_arb1, Pred_apart_arb1)
 
+
+############################################## Arbol 2#############################################
+Pred_casa_arb2 <- data.frame(train_casas1$property_id, exp(predict(tree_lenghtc, newdata = train_casas1)))
+colnames(Pred_casa_arb2) <- c("property_id", "Pred_arb2")
+Pred_apart_arb2 <- data.frame(train_apart1$property_id, exp(predict(tree_lenght, newdata = train_apart1)))
+colnames(Pred_apart_arb2) <- c("property_id", "Pred_arb2")
+Pred_arbol_fm2t <- rbind(Pred_casa_arb2, Pred_apart_arb2)
+
+############################################## Arbol 3#############################################
+Pred_casa_arb3 <- data.frame(train_casas1$property_id, exp(predict(tree_gridc, newdata = train_casas1)))
+colnames(Pred_casa_arb3) <- c("property_id", "Pred_arb3")
+Pred_apart_arb3 <- data.frame(train_apart1$property_id, exp(predict(tree_grid, newdata = train_apart1)))
+colnames(Pred_apart_arb3) <- c("property_id", "Pred_arb3")
+Pred_arbol_fm3t <- rbind(Pred_casa_arb3, Pred_apart_arb3)
+
+############################################## Arbol 4#############################################
+Pred_casa_arb4 <- data.frame(train_casas1$property_id, exp(predict(tree_rpart2_robc, newdata = train_casas1)))
+colnames(Pred_casa_arb4) <- c("property_id", "Pred_arb4")
+Pred_apart_arb4 <- data.frame(train_apart1$property_id, exp(predict(tree_rpart2_rob, newdata = train_apart1)))
+colnames(Pred_apart_arb4) <- c("property_id", "Pred_arb4")
+Pred_arbol_fm4t <- rbind(Pred_casa_arb4, Pred_apart_arb4)
+
+############################################## Arbol5#############################################
+Pred_casa_arb5 <- data.frame(train_casas1$property_id, exp(predict(tree_rpart2_rob_samplec, newdata = train_casas1)))
+colnames(Pred_casa_arb5) <- c("property_id", "Pred_arb5")
+Pred_apart_arb5 <- data.frame(train_apart1$property_id, exp(predict(tree_rpart2_rob_sample, newdata = train_apart1)))
+colnames(Pred_apart_arb5) <- c("property_id", "Pred_arb5")
+Pred_arbol_fm5t <- rbind(Pred_casa_arb5, Pred_apart_arb5)
+
+############################################## Arbol6#############################################
+Pred_casa_arb6 <- data.frame(train_casas1$property_id, exp(predict(tree_rangerc, newdata = train_casas1)))
+colnames(Pred_casa_arb6) <- c("property_id", "Pred_arb6")
+Pred_apart_arb6 <- data.frame(train_apart1$property_id, exp(predict(tree_ranger, newdata = train_apart1)))
+colnames(Pred_apart_arb6) <- c("property_id", "Pred_arb6")
+Pred_arbol_fm6t <- rbind(Pred_casa_arb6, Pred_apart_arb6)
+
+############################################## Arbol7#############################################
+Pred_casa_arb7 <- data.frame(train_casas1$property_id, exp(predict(tree_ranger_gridc, newdata = train_casas1)))
+colnames(Pred_casa_arb7) <- c("property_id", "Pred_arb7")
+Pred_apart_arb7 <- data.frame(train_apart1$property_id, exp(predict(tree_ranger_grid, newdata = train_apart1)))
+colnames(Pred_apart_arb7) <- c("property_id", "Pred_arb7")
+Pred_arbol_fm7t<- rbind(Pred_casa_arb7, Pred_apart_arb7)
+
+
+# Unir los precios reales con identificadores desde "submission_template"
+Precios_realest <- train[, c("property_id", "Precio")]
+# Combinar los precios reales en un único conjunto
+Datos_conjuntos_1t <- merge(Pred_arbol_fm1t, Precios_realest, by = "property_id")
+Datos_conjuntos_2t <- merge(Pred_arbol_fm2t, Precios_realest, by = "property_id")
+Datos_conjuntos_3t <- merge(Pred_arbol_fm3t, Precios_realest, by = "property_id")
+Datos_conjuntos_4t <- merge(Pred_arbol_fm4t, Precios_realest, by = "property_id")
+Datos_conjuntos_5t <- merge(Pred_arbol_fm5t, Precios_realest, by = "property_id")
+Datos_conjuntos_6t <- merge(Pred_arbol_fm6t, Precios_realest, by = "property_id")
+Datos_conjuntos_7t <- merge(Pred_arbol_fm7t, Precios_realest, by = "property_id")
+
+mae_1t <- abs(mean((Datos_conjuntos_1t$Pred_arb1 - Datos_conjuntos_2t$Precio)))
+mae_2t  <- abs(mean((Datos_conjuntos_2t$Pred_arb2 - Datos_conjuntos_2t$Precio)))
+mae_3t  <- abs(mean((Datos_conjuntos_3t$Pred_arb3 - Datos_conjuntos_3t$Precio)))
+mae_4t  <- abs(mean((Datos_conjuntos_4t$Pred_arb4 - Datos_conjuntos_4t$Precio)))
+mae_5t <- abs(mean((Datos_conjuntos_5t$Pred_arb5 - Datos_conjuntos_5t$Precio)))
+mae_6t  <- abs(mean((Datos_conjuntos_6t$Pred_arb6 - Datos_conjuntos_6t$Precio)))
+mae_7t  <- abs(mean((Datos_conjuntos_7t$Pred_arb7 - Datos_conjuntos_7t$Precio)))
+
+# Luego puedes almacenar los resultados en un dataframe
+errores_mae <- data.frame(
+  Modelo = c("Arbol 1", "Arbol 2", "Arbol 3", "Arbol 4", "Arbol 5", "Arbol 6", "Arbol 7"),
+  MAE = c(mae_1t, mae_2t, mae_3t, mae_4t, mae_5t, mae_6t, mae_7t)
+)
+
+# Imprimir los errores RMSE
+print(errores_mae)
+
+
+
+
+
+
+
+######################################## Predicciones dentro de muestras TEST####################################
+
+##########################################Arbol 1#######################################################
 Pred_casa_arb1 <- data.frame(test_casas1$property_id, exp(predict(tree_rpart2c, newdata = test_casas1)))
 colnames(Pred_casa_arb1) <- c("property_id", "Pred_arb1")
 Pred_apart_arb1 <- data.frame(test_apart1$property_id, exp(predict(tree_rpart2, newdata = test_apart1)))
@@ -2893,15 +2991,274 @@ Pred_arbol_fm7<- rbind(Pred_casa_arb7, Pred_apart_arb7)
 # Unir los precios reales con identificadores desde "submission_template"
 Precios_reales <- submission_template[, c("property_id", "price")]
 # Combinar los precios reales en un único conjunto
-Datos_conjuntos <- merge(Pred_arbol_fm, Precios_reales, by = "property_id")
-# Calcular el error cuadrático medio (RMSE) conjunto
-error_rmse_conjunto <- sqrt(mean((Datos_conjuntos$Pred_arb1 - Datos_conjuntos$price) ^ 2))
+Datos_conjuntos_1 <- merge(Pred_arbol_fm1, Precios_reales, by = "property_id")
+Datos_conjuntos_2 <- merge(Pred_arbol_fm2, Precios_reales, by = "property_id")
+Datos_conjuntos_3 <- merge(Pred_arbol_fm3, Precios_reales, by = "property_id")
+Datos_conjuntos_4 <- merge(Pred_arbol_fm4, Precios_reales, by = "property_id")
+Datos_conjuntos_5 <- merge(Pred_arbol_fm5, Precios_reales, by = "property_id")
+Datos_conjuntos_6 <- merge(Pred_arbol_fm6, Precios_reales, by = "property_id")
+Datos_conjuntos_7 <- merge(Pred_arbol_fm7, Precios_reales, by = "property_id")
 
-# Imprimir el error conjunto
-cat("Error RMSE conjunto:", error_rmse_conjunto, "\n")
+error_rmse_1 <- sqrt(mean((Datos_conjuntos_1$Pred_arb1 - Datos_conjuntos_2$price) ^ 2))
+error_rmse_2 <- sqrt(mean((Datos_conjuntos_2$Pred_arb2 - Datos_conjuntos_2$price) ^ 2))
+error_rmse_3 <- sqrt(mean((Datos_conjuntos_3$Pred_arb3 - Datos_conjuntos_3$price) ^ 2))
+error_rmse_4 <- sqrt(mean((Datos_conjuntos_4$Pred_arb4 - Datos_conjuntos_4$price) ^ 2))
+error_rmse_5 <- sqrt(mean((Datos_conjuntos_5$Pred_arb5 - Datos_conjuntos_5$price) ^ 2))
+error_rmse_6 <- sqrt(mean((Datos_conjuntos_6$Pred_arb6 - Datos_conjuntos_6$price) ^ 2))
+error_rmse_7 <- sqrt(mean((Datos_conjuntos_7$Pred_arb7 - Datos_conjuntos_7$price) ^ 2))
 
-Datos_conjuntos$log_price <- log(Datos_conjuntos$price)
-Datos_conjuntos$log_Pred_arb1 <- log(Datos_conjuntos$Pred_arb1)
+# Luego puedes almacenar los resultados en un dataframe
+errores_rmse <- data.frame(
+  Modelo = c("Arbol 1", "Arbol 2", "Arbol 3", "Arbol 4", "Arbol 5", "Arbol 6", "Arbol 7"),
+  RMSE = c(error_rmse_1, error_rmse_2, error_rmse_3, error_rmse_4, error_rmse_5, error_rmse_6, error_rmse_7)
+)
 
-# Calcular el error cuadrático medio (RMSE) conjunto con logaritmos
-error_rmse_conjunto_log <- sqrt(mean((Datos_conjuntos$log_Pred_arb1 - Datos_conjuntos$log_price) ^ 2))
+# Imprimir los errores RMSE
+print(errores_rmse)
+
+test_aborl6 <- "C:/Users/Usuario/Documents/Machine Learning/Taller_2/stores/arbol66.xlsx"  
+write_xlsx(Pred_arbol_fm6, test_aborl6)
+
+test_aborl6 <- "C:/Users/Usuario/Documents/Machine Learning/Taller_2/stores/predicción_arbol2.csv"  
+write_csv(Pred_arbol_fm7, test_aborl6)
+
+write.csv(x = Pred_arbol_fm2,
+          file = paste0(test_aborl6, 'predicción_arbol2.csv'),
+          row.names = FALSE)
+################################################## MAS PRUEBAS ############################################################
+# Divide tus datos en entrenamiento y prueba
+set.seed(123)
+indice_entrenamiento <- sample(1:nrow(train_apart1), 0.7* nrow(train_apart1))
+datos_entrenamiento <- train_apart1[indice_entrenamiento, ]
+datos_prueba <- train_apart1[-indice_entrenamiento, ]
+tuneGrid <- expand.grid(maxdepth = c(1, 5, 10, 15, 20, 25, 30))
+
+# Ajusta el primer modelo en el conjunto de entrenamiento
+modelo1 <- train(
+  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+  data = datos_entrenamiento,
+  method = "rpart2",
+  trControl = fitControl,
+  tuneGrid = tuneGrid
+)
+
+# Ajusta el segundo modelo en el conjunto de entrenamiento
+modelo2 <- train(
+  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+  data = datos_entrenamiento,
+  method = "rpart2",
+  trControl = fitControl,
+  tuneGrid = tuneGrid
+)
+
+# Realiza predicciones con el segundo modelo en el conjunto de prueba
+predicciones_fuera_de_muestra_modelo2 <- predict(modelo2, newdata = datos_prueba)
+
+# Evalúa el rendimiento de los modelos en el conjunto de prueba
+# Calcular el MAE para el primer modelo en el conjunto de prueba
+mae_modelo1 <- mean(abs(predicciones_fuera_de_muestra_modelo1 - datos_prueba$lPrecio))
+
+# Calcular el MAE para el segundo modelo en el conjunto de prueba
+mae_modelo2 <- mean(abs(predicciones_fuera_de_muestra_modelo2 - datos_prueba$lPrecio))
+
+print(paste("Modelo 1 - MAE: ", mae_modelo1))
+print(paste("Modelo 2 - MAE: ", mae_modelo2))
+
+
+######################################################################################################################
+
+#######################################Empecemos con un modelo de regresión lineal###################################
+
+# Segmenta la base de datos en localidad de Usaquén (entrenamiento) y resto de localidades (prueba)
+localidad_entrenamiento <- "Usaquén"  # Reemplaza con el nombre de tu localidad de interés
+test_data <- combined_train[combined_train$localidad != localidad_entrenamiento, ]
+localidades_a_excluir <- c("Fontibón", "Los Martires")
+test_data <- test_data[!(test_data$localidad %in% localidades_a_excluir), ]
+train_data <- subset(combined_train, localidad == localidad_entrenamiento)
+
+# Verifica la cantidad de datos en cada conjunto
+nrow(train_data)  # Número de filas en el conjunto de entrenamiento
+nrow(test_data)   # Número de filas en el conjunto de prueba
+
+train_data$M2_por_Habitacion<- train_data$Area/train_data$Habitaciones
+train_data$Habitaciones2 <- train_data$Habitaciones^2
+train_data$M2_por_Habitacion_Garaje <- train_data$M2_por_Habitacion * train_data$Garaje
+train_data$Sala_BBQ_terraza <- train_data$Sala_BBQ * train_data$Terraza
+train_data$year <- as.character(train_data$year)
+train_data$month <- as.character(train_data$month)
+train_data$Fecha <- as.Date(paste0(train_data$year, "-", train_data$month, "-01"))
+train_data$Fecha <- as.Date(train_data$Fecha)
+train_data$lPrecio<- log(train_data$Precio)
+
+recp1 <- recipe(lPrecio ~ Estrato, data = train_data)
+recp2 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 , data = train_data)
+recp3 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación, data = train_data)
+recp4 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza, data = train_data)
+recp5 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje, data = train_data)
+recp6 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ, data = train_data)
+recp7 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ +Sala_BBQ_terraza , data = train_data)
+recp8 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ + Sala_BBQ_terraza+ Gimnasio, data = train_data)
+recp9 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ+ Gimnasio, data = train_data)
+recp10 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza+ Gimnasio, data = train_data)
+recp11 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza+ Sala_BBQ + Gimnasio, data = train_data)
+recp12 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza+ Sala_BBQ + Gimnasio+ Chimenea , data = train_data)
+recp12 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza+ Sala_BBQ + Gimnasio+ Chimenea + Seguridad , data = train_data)
+recp13 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza+ Sala_BBQ + Gimnasio+ Chimenea + Seguridad + Dist_Parques , data = train_data)
+recp13 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza+ Sala_BBQ + Gimnasio+ Chimenea + Seguridad + Dist_Parques +Dist_Transp_Publico , data = train_data)
+recp14 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza+ Sala_BBQ + Gimnasio+ Chimenea + Seguridad + Dist_Parques+Dist_Transp_Publico + Dist_Establecimientos
+             , data = train_data)
+recp15 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza+ Sala_BBQ + Gimnasio+ Chimenea + Seguridad + Dist_Parques+Dist_Transp_Publico + Dist_Establecimientos
+             , data = train_data)
+recp16 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza+ Sala_BBQ + Gimnasio+ Chimenea + Seguridad + Dist_Parques+Dist_Transp_Publico + Dist_Establecimientos
+             + Dist_C_Comerc, data = train_data)
+recp17 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza+ Sala_BBQ + Gimnasio+ Chimenea + Seguridad + Dist_Parques+Dist_Transp_Publico + Dist_Establecimientos
+             + Dist_C_Comerc+ Dist_Centros_Educ, data = train_data)
+recp18 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza+ Sala_BBQ + Gimnasio+ Chimenea + Seguridad + Dist_Parques+Dist_Transp_Publico + Dist_Establecimientos
+             + Dist_C_Comerc+ Dist_Centros_Educ + Dist_Restaurantes, data = train_data)
+recp19 <- recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza+ Sala_BBQ + Gimnasio+ Chimenea + Seguridad + Dist_Parques+Dist_Transp_Publico + Dist_Establecimientos
+             + Dist_C_Comerc+ Dist_Centros_Educ + Dist_Restaurantes+ Dist_Bancos, data = train_data)
+recp20<- recipe(lPrecio ~  ~ ., data = train_data) %>%
+  step_dummy(all_nominal_predictors())  #Convertir todas las variables categóricas a dummies 
+lm_mod <- linear_reg() 
+
+# Crear el flujo de trabajo
+wf1 <- workflow() %>%
+  add_recipe(recp1) %>%
+  add_model(lm_mod)
+
+# Crear el flujo de trabajo
+wf2 <- workflow() %>%
+  add_recipe(recp1) %>%
+  add_model(lm_mod)
+
+# Crear el flujo de trabajo
+wf3 <- workflow() %>%
+  add_recipe(recp3) %>%
+  add_model(lm_mod)
+
+# Crear el flujo de trabajo
+wf4 <- workflow() %>%
+  add_recipe(recp4) %>%
+  add_model(lm_mod)
+
+# Crear el flujo de trabajo
+wf5 <- workflow() %>%
+  add_recipe(recp5) %>%
+  add_model(lm_mod)
+
+# Crear el flujo de trabajo
+wf6 <- workflow() %>%
+  add_recipe(recp6) %>%
+  add_model(lm_mod)
+
+# Crear el flujo de trabajo
+wf7 <- workflow() %>%
+  add_recipe(recp7) %>%
+  add_model(lm_mod)
+
+# Crear el flujo de trabajo
+wf8 <- workflow() %>%
+  add_recipe(recp8) %>%
+  add_model(lm_mod)
+
+# Crear el flujo de trabajo
+wf9 <- workflow() %>%
+  add_recipe(recp9) %>%
+  add_model(lm_mod)
+
+# Crear el flujo de trabajo
+wf10 <- workflow() %>%
+  add_recipe(recp10) %>%
+  add_model(lm_mod)
+
+# Crear el flujo de trabajo
+wf11 <- workflow() %>%
+  add_recipe(recp11) %>%
+  add_model(lm_mod)
+
+# Crear el flujo de trabajo
+wf12 <- workflow() %>%
+  add_recipe(recp12) %>%
+  add_model(lm_mod)
+
+
+# Crear el flujo de trabajo
+wf13 <- workflow() %>%
+  add_recipe(recp13) %>%
+  add_model(lm_mod)
+
+
+
+
+
+
+
+# Divide tus datos en conjuntos de entrenamiento y prueba
+set.seed(123)
+indice_entrenamiento <- sample(1:nrow(train_apart1), 0.7 * nrow(train_apart1))
+datos_entrenamiento <- train_apart1[indice_entrenamiento, ]
+datos_prueba <- train_apart1[-indice_entrenamiento, ]
+
+# Ajusta el modelo en el conjunto de entrenamiento
+tree_ranger_grid <- train(
+  lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+  data = datos_entrenamiento,
+  method = "ranger",
+  trControl = fitControl,
+  tuneGrid = expand.grid(
+    mtry = c(1,2,3),
+    splitrule = "variance",
+    min.node.size = c(5,10,15))
+)
+
+# Realiza predicciones en el conjunto de prueba
+predicciones_fuera_de_muestra <- predict(tree_ranger_grid, newdata = datos_prueba)
+
+# Evalúa el rendimiento del modelo
+mae <- mean(abs(predicciones_fuera_de_muestra - datos_prueba$lPrecio))
+print(paste("MAE en datos de prueba:", mae))
+
+#########################################################################################################################
+# Divide tus datos en k partes
+k <- 5  # Número de pliegues
+folds <- createFolds(datos_entrenamiento$lPrecio, k = k, list = TRUE, returnTrain = TRUE)
+
+# Inicializa un vector para almacenar los MAE de cada pliegue
+mae_values <- numeric(k)
+
+for (i in 1:k) {
+  # Selecciona el i-ésimo pliegue como conjunto de prueba y los demás como entrenamiento
+  train_indices <- unlist(folds[i])
+  test_indices <- setdiff(1:nrow(datos_entrenamiento), train_indices)
+  
+  train_data <- datos_entrenamiento[train_indices, ]
+  test_data <- datos_entrenamiento[test_indices, ]
+  
+  # Ajusta el modelo en el conjunto de entrenamiento actual
+  model <- train(
+    lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+      Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+    data = train_data,
+    method = "ranger",
+    trControl = fitControl,
+    tuneGrid = expand.grid(
+      mtry = c(1,2,3),
+      splitrule = "variance",
+      min.node.size = c(5,10,15))
+  )
+  
+  # Realiza predicciones en el conjunto de prueba actual
+  predictions <- predict(model, newdata = test_data)
+  
+  # Calcula el MAE para este pliegue
+  mae_values[i] <- mean(abs(predictions - test_data$lPrecio))
+}
+
+# Calcula el MAE promedio de todos los pliegues
+average_mae <- mean(mae_values)
+
+# Muestra el MAE promedio
+print(paste("MAE promedio en validación cruzada:", average_mae))
