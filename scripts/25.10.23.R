@@ -113,16 +113,26 @@ for (url in excel_urls) {
   file.remove(temp_file)
 }
 combined_train <- rbind(train_apart1, train_casas1)
+combined_test <- rbind(test_apart1, test_casas1)
 
 ### --------------------------------------Combined_train --------------------------------#
 
 combined_train$Habitaciones2 <- combined_train$Habitaciones^2
 combined_train$M2_por_Habitacion_Garaje <- combined_train$M2_por_Habitación * combined_train$Garaje
+combined_train$M2_por_Habitacion <- combined_train$M2_por_Habitación 
 combined_train$Sala_BBQ_terraza <- combined_train$Sala_BBQ * combined_train$Terraza
 combined_train$year <- as.character(combined_train$year)
 combined_train$month <- as.character(combined_train$month)
 combined_train$Fecha <- as.Date(paste0(combined_train$year, "-", combined_train$month, "-01"))
 combined_train$Fecha <- as.Date(combined_train$Fecha)
+
+combined_test$Habitaciones2 <- combined_test$Habitaciones^2
+combined_test$M2_por_Habitacion_Garaje <- combined_test$M2_por_Habitacion * combined_test$Garaje
+combined_test$Sala_BBQ_terraza <- combined_test$Sala_BBQ * combined_test$Terraza
+combined_test$year <- as.character(combined_test$year)
+combined_test$month <- as.character(combined_test$month)
+combined_test$Fecha <- as.Date(paste0(combined_test$year, "-", combined_test$month, "-01"))
+combined_test$Fecha <- as.Date(combined_test$Fecha)
 
 # -------------------------------CREACION DE OTRAS VARIABLES-------------------------- # 
 train_casas1$M2_por_Habitacion<- train_casas1$Area/train_casas1$Habitaciones
@@ -182,52 +192,75 @@ localidad_entrenamiento <- "Usaquén"  # Reemplaza con el nombre de tu localidad
 test_data <- combined_train[combined_train$localidad != localidad_entrenamiento, ]
 localidades_a_excluir <- c("Fontibón", "Los Martires")
 test_data <- test_data[!(test_data$localidad %in% localidades_a_excluir), ]
-train_data <- subset(combined_train, localidad == localidad_entrenamiento)
+train_data1 <- subset(combined_train, localidad == localidad_entrenamiento)
+test_data1 <- test_data[!(test_data$localidad %in% localidades_a_excluir), ]
 
 # Verifica la cantidad de datos en cada conjunto
-nrow(train_data)  # Número de filas en el conjunto de entrenamiento
-nrow(test_data)   # Número de filas en el conjunto de prueba
+nrow(train_data1)  # Número de filas en el conjunto de entrenamiento
+nrow(test_data1)   # Número de filas en el conjunto de prueba
 
-train_data$M2_por_Habitacion<- train_data$Area/train_data$Habitaciones
-train_data$Habitaciones2 <- train_data$Habitaciones^2
-train_data$M2_por_Habitacion_Garaje <- train_data$M2_por_Habitacion * train_data$Garaje
-train_data$Sala_BBQ_terraza <- train_data$Sala_BBQ * train_data$Terraza
-train_data$year <- as.character(train_data$year)
-train_data$month <- as.character(train_data$month)
-train_data$Fecha <- as.Date(paste0(train_data$year, "-", train_data$month, "-01"))
-train_data$Fecha <- as.Date(train_data$Fecha)
-train_data$lPrecio<- log(train_data$Precio)
+train_data1$M2_por_Habitacion<- train_data1$Area/train_data1$Habitaciones
+train_data1$Habitaciones2 <- train_data1$Habitaciones^2
+train_data1$M2_por_Habitacion_Garaje <- train_data1$M2_por_Habitacion * train_data1$Garaje
+train_data1$Sala_BBQ_terraza <- train_data1$Sala_BBQ * train_data1$Terraza
+train_data1$year <- as.character(train_data1$year)
+train_data1$month <- as.character(train_data1$month)
+train_data1$Fecha <- as.Date(paste0(train_data1$year, "-", train_data1$month, "-01"))
+train_data1$Fecha <- as.Date(train_data1$Fecha)
+train_data1$lPrecio<- log(train_data1$Precio)
+
+test_data1$M2_por_Habitacion<- test_data1$Area/test_data1$Habitaciones
+test_data1$Habitaciones2 <- test_data1$Habitaciones^2
+test_data1$M2_por_Habitacion_Garaje <- test_data1$M2_por_Habitacion * test_data1$Garaje
+test_data1$Sala_BBQ_terraza <- test_data1$Sala_BBQ * test_data1$Terraza
+test_data1$year <- as.character(test_data1$year)
+test_data1$month <- as.character(test_data1$month)
+test_data1$Fecha <- as.Date(paste0(test_data1$year, "-", test_data1$month, "-01"))
+test_data1$Fecha <- as.Date(test_data1$Fecha)
+test_data1$lPrecio<- log(test_data1$Precio)
+
+
+train_apart4 <- train_apart1[train_apart1$Estrato == 4, c("property_id","title", "Fecha", "localidad","Precio", "lPrecio",
+                                                            "Precio_M2", "Habitaciones","Habitaciones2", "Baños", "Area","M2_por_Habitacion", "lat", "lon", "Terraza",
+                                                            "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
+                                                            "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos",
+                                                            "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos", "Sala_BBQ_terraza")]
+train_casas4 <- train_casas1[train_casas1$Estrato == 4, c("property_id","title", "Fecha", "localidad","Precio", "lPrecio",
+                                                            "Precio_M2", "Habitaciones","Habitaciones2", "Baños", "Area","M2_por_Habitacion", "lat", "lon", "Terraza",
+                                                            "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
+                                                            "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos",
+                                                            "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos", "Sala_BBQ_terraza")]
 
 
 
 #------------------------------------------------------------------- Modelo OLS-----------------------------------------------####
 
 
-
+#############################---------------------------------------------------------------------------------------############
 library(tidymodels)
 library(yardstick)
 
 # Crear una lista de recetas
 recetas <- list(
-  recipe(lPrecio ~ Estrato, data = train_data),
-  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2, data = train_data),
-  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación, data = train_data),
-  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza, data = train_data),
-  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje, data = train_data),
-  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ, data = train_data),
-  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ + Sala_BBQ_terraza, data = train_data),
-  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ + Sala_BBQ_terraza + Gimnasio, data = train_data),
-  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ + Gimnasio, data = train_data),
-  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Gimnasio, data = train_data),
-  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Sala_BBQ + Gimnasio, data = train_data),
-  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Sala_BBQ + Gimnasio + Chimenea, data = train_data),
-  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Sala_BBQ + Gimnasio + Chimenea + Seguridad, data = train_data),
-  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques, data = train_data),
-  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico, data = train_data),
-  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos, data = train_data),
-  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc, data = train_data),
-  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ, data = train_data),
-  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_data)
+  recipe(lPrecio ~ Estrato, data = train_data1),
+  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2, data = train_data1),
+  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación, data = train_data1),
+  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza, data = train_data1),
+  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje, data = train_data1),
+  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ, data = train_data1),
+  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ + Sala_BBQ_terraza, data = train_data1),
+  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ + Sala_BBQ_terraza + Gimnasio, data = train_data1),
+  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ + Gimnasio, data = train_data1),
+  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Gimnasio, data = train_data1),
+  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Sala_BBQ + Gimnasio, data = train_data1),
+  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Sala_BBQ + Gimnasio + Chimenea, data = train_data1),
+  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Sala_BBQ + Gimnasio + Chimenea + Seguridad, data = train_data1),
+  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques, data = train_data1),
+  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico, data = train_data1),
+  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos, data = train_data1),
+  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc, data = train_data1),
+  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ, data = train_data1),
+  recipe(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + M2_por_Habitación + Terraza + Garaje + Sala_BBQ_terraza + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_data1)
 )
 
 # Crear un contenedor para los resultados
@@ -247,7 +280,7 @@ for (i in seq_along(recetas)) {
     fit(data = train_data)
   
   # Realizar predicciones en el conjunto de prueba
-  predicciones <- predict(modelo, new_data = test_data) %>%
+  predicciones <- predict(modelo, new_data = test_data1) %>%
     bind_cols(test_data)
   
   predicciones <- predicciones %>% mutate(.pred = exp(.pred))
@@ -260,6 +293,7 @@ for (i in seq_along(recetas)) {
 
 # Mostrar los resultados
 results
+
 # Dividir los datos en entrenamiento y prueba
 set.seed(123)
 
@@ -758,7 +792,7 @@ cat("MAE en datos de prueba:", mae_value, "\n")
 #######################################################TRAIN DATA-------------------------------------------------------------
 ridge_recipe <-
   recipe(formula = lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitación + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos
-         + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_data) %>%
+         + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_data1) %>%
   step_interact(terms = ~ M2_por_Habitación:Terraza + M2_por_Habitación:Garaje) %>%
   step_novel(all_nominal_predictors()) %>%
   step_dummy(all_nominal_predictors()) %>%
@@ -795,17 +829,17 @@ best_penalty
 
 ridge_final <- finalize_workflow(ridge_workflow, best_penalty)
 Ridge_a <- fit(ridge_final, data =train_data)
-test_data$Predict_rgd_a <- predict(Ridge_a, new_data = test_data)
+test_data1$Predict_rgd_a <- predict(Ridge_a, new_data = test_data1)
 
 # Convertir la lista en un vector numérico
-test_data$Predict_rgd_a <- unlist(test_data$Predict_rgd_a)
+test_data1$Predict_rgd_a <- unlist(test_data1$Predict_rgd_a)
 
 # Verificar y convertir los datos al formato correcto
-test_data$Predict_rgd_a <- as.numeric(test_data$Predict_rgd_a)
-test_data$lPrecio <- as.numeric(test_data$lPrecio)
+test_data1$Predict_rgd_a <- as.numeric(test_data1$Predict_rgd_a)
+test_data1$lPrecio <- as.numeric(test_data1$lPrecio)
 
 # Calcular el MAE de manera manual
-mae_value <- mean(abs(test_data$Predict_rgd_a - test_data$lPrecio), na.rm = TRUE)
+mae_value <- mean(abs(exp(test_data1$Predict_rgd_a) - exp(test_data1$lPrecio)), na.rm = TRUE)
 
 # Imprimir el valor del MAE
 cat("MAE en datos de prueba:", mae_value, "\n")
@@ -848,7 +882,7 @@ for (i in 1:k) {
   predictions <- predict(model, newdata = test_data)
   
   # Calcula el MAE para este pliegue
-  mae_values[i] <- mean(abs(predictions - test_data$lPrecio))
+  mae_values[i] <- mean(abs(exp(predictions) - exp(test_data$lPrecio)))
 }
 
 # Calcula el MAE promedio de todos los pliegues
@@ -862,7 +896,7 @@ print(paste("MAE promedio en validación cruzada:", average_mae))
 tree_ranger_grid <- train(
   lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitación + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
     Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
-  data = train_data,
+  data = train_data1,
   method = "ranger",
   trControl = fitControl,
   tuneGrid = expand.grid(
@@ -872,7 +906,7 @@ tree_ranger_grid <- train(
 )
 
 # Realiza predicciones en el conjunto de prueba
-predicciones_fuera_de_muestra <- predict(tree_ranger_grid, newdata = test_data)
+predicciones_fuera_de_muestra <- predict(tree_ranger_grid, newdata = test_data1)
 
 # Evalúa el rendimiento del modelo
 mae <- mean(abs(exp(predicciones_fuera_de_muestra) - exp(test_data$lPrecio)))
@@ -920,6 +954,8 @@ mae <- mean(abs(test_data$Predict_ls_a - test_data$lPrecio), na.rm = TRUE)
 cat("Mean Absolute Error (MAE):", mae, "\n")
 
 ###########################################LASSO##########################################################
+set.seed(123)
+
 train_fold <- vfold_cv(train_data, v = 5)
 
 lasso_recipe <-
@@ -960,12 +996,13 @@ test_data$Predict_ls_a <- as.numeric(test_data$Predict_ls_a)
 test_data$lPrecio <- as.numeric(test_data$lPrecio)
 
 # Calcular el MAE de manera manual
-mae_value <- mean(abs(test_data$Predict_ls_a - test_data$lPrecio), na.rm = TRUE)
+mae_value <- mean(abs(exp(test_data$Predict_ls_a) - exp(test_data$lPrecio)), na.rm = TRUE)
 
 # Imprimir el valor del MAE
 cat("MAE en datos de prueba:", mae_value, "\n")
 
 ###########################################LASSO 2##########################################################
+set.seed(123)
 
 train_fold2 <- vfold_cv(training_data, v = 5)
 
@@ -1007,7 +1044,320 @@ testing_data$Predict_ls_a <- as.numeric(testing_data$Predict_ls_a)
 testing_data$lPrecio <- as.numeric(testing_data$lPrecio)
 
 # Calcular el MAE de manera manual
-mae_value2 <- mean(abs(testing_data$Predict_ls_a - testing_data$lPrecio), na.rm = TRUE)
+mae_value2 <- mean(abs(exp(testing_data$Predict_ls_a) - exp(testing_data$lPrecio)), na.rm = TRUE)
 
 # Imprimir el valor del MAE
 cat("MAE en datos de prueba:", mae_value2, "\n")
+
+###########################################################################################################################
+set.seed(123)
+
+training_indices4 <- initial_split(train_apart4, prop = 0.7)
+train_data4a <- training_indices4 %>% training()
+test_data4a <- training_indices4 %>% testing()
+training_indices4c <- initial_split(train_casas4, prop = 0.7)
+train_data4c <- training_indices4c %>% training()
+test_data4c <- training_indices4c %>% testing()
+combined_test4 <- rbind(test_data4c, test_data4a)
+
+fitControl<-trainControl(method ="cv",
+                         number=5)
+
+# Ajusta el modelo en el conjunto de entrenamiento
+model <- train(
+  lPrecio ~  Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+  data = train_data4a,
+  method = "ranger",
+  trControl = fitControl,
+  tuneGrid = expand.grid(
+    mtry = c(1, 2, 3),
+    splitrule = "variance",
+    min.node.size = c(5, 10, 15)
+  )
+)
+
+# Realiza predicciones en el conjunto de prueba
+test_data4a$predictions <-predict(model, newdata = test_data4a)
+
+# Calcular el MAE de manera manual
+mae_value2 <- mean(abs(exp(test_data4a$predictions) - exp(test_data4a$lPrecio)), na.rm = TRUE)
+
+# Imprimir el valor del MAE
+cat("MAE en datos de prueba:", mae_value2, "\n")
+
+modelc <- train(
+  lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+  data = train_data4c,
+  method = "ranger",
+  trControl = fitControl,
+  tuneGrid = expand.grid(
+    mtry = c(1, 2, 3),
+    splitrule = "variance",
+    min.node.size = c(5, 10, 15)
+  )
+)
+# Realiza predicciones en el conjunto de prueba
+test_data4c$predictions <-predict(modelc, newdata = test_data4c)
+mae_value2 <- mean(abs(exp(test_data4c$predictions) - exp(test_data4c$lPrecio)), na.rm = TRUE)
+test_datat<-rbind(test_data4a, test_data4c)
+mae_valuetotal<- mean(abs(exp(test_datat$predictions) - exp(test_datat$lPrecio)), na.rm = TRUE)
+cat("MAE en datos de prueba:", mae_valuetotal, "\n")
+
+
+
+set.seed(123)
+tree_rpart2 <- train(
+  lPrecio ~Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+  data = train_data4a,
+  method = "rpart2",
+  trControl = fitControl,
+  tuneGrid = expand.grid(maxdepth = seq(1,30,1))
+)
+tree_rpart2
+
+
+# Realiza predicciones en el conjunto de prueba
+test_data4a$predictions1 <-predict(tree_rpart2, newdata = test_data4a)
+
+# Calcular el MAE de manera manual
+mae_value2 <- mean(abs(exp(test_data4a$predictions1) - exp(test_data4a$lPrecio)), na.rm = TRUE)
+
+# Imprimir el valor del MAE
+cat("MAE en datos de prueba:", mae_value2, "\n")
+
+tree_rpart2c <- train(
+  lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+  data = train_data4c,
+  method = "rpart2",
+  trControl = fitControl,
+  tuneGrid = expand.grid(maxdepth = seq(1,30,1))
+)
+tree_rpart2c
+
+# Realiza predicciones en el conjunto de prueba
+test_data4c$predictions1 <-predict(tree_rpart2c, newdata = test_data4c)
+mae_value2 <- mean(abs(exp(test_data4c$predictions1) - exp(test_data4c$lPrecio)), na.rm = TRUE)
+test_datat1<-rbind(test_data4a, test_data4c)
+mae_valuetotal1<- mean(abs(exp(test_datat1$predictions1) - exp(test_datat$lPrecio)), na.rm = TRUE)
+cat("MAE en datos de prueba:", mae_valuetotal1, "\n")
+
+
+
+set.seed(123)
+tree_lenghta <- train(
+  lPrecio ~  Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+  data = train_data4a,
+  method = "rpart",
+  metric="MAE",
+  trControl = fitControl,
+  tuneLength=100,
+
+)
+
+tree_lenghtc <- train(
+  lPrecio ~  Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+  data = train_data4c,
+  method = "rpart",
+  metric="MAE",
+  trControl = fitControl,
+  tuneLength=100,
+)
+
+
+# Realiza predicciones en el conjunto de prueba
+test_data4a$predictions2 <-predict(tree_lenghta, newdata = test_data4a)
+
+# Calcular el MAE de manera manual
+mae_value2 <- mean(abs(exp(test_data4a$predictions2) - exp(test_data4a$lPrecio)), na.rm = TRUE)
+
+test_data4c$predictions2 <-predict(tree_lenghtc , newdata = test_data4c)
+mae_value2 <- mean(abs(exp(test_data4c$predictions2) - exp(test_data4c$lPrecio)), na.rm = TRUE)
+test_datat1<-rbind(test_data4a, test_data4c)
+mae_valuetotal1<- mean(abs(exp(test_datat1$predictions2) - exp(test_datat$lPrecio)), na.rm = TRUE)
+cat("MAE en datos de prueba:", mae_valuetotal1, "\n")
+
+
+set.seed(123)
+tree_rpart2_roba <- train(
+  lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+  data = train_data4a[-c(1:20),],
+  method = "rpart2",
+  trControl = fitControl,
+  tuneGrid = expand.grid(maxdepth = seq(1,30,1))
+)
+
+set.seed(123)
+tree_rpart2_robc <- train(
+  lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
+    Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, 
+  data = train_data4c[-c(1:20),],
+  method = "rpart2",
+  trControl = fitControl,
+  tuneGrid = expand.grid(maxdepth = seq(1,30,1))
+)
+
+# Realiza predicciones en el conjunto de prueba
+test_data4a$predictions3 <-predict(tree_rpart2_roba, newdata = test_data4a)
+
+# Calcular el MAE de manera manual
+mae_value2 <- mean(abs(exp(test_data4a$predictions2) - exp(test_data4a$lPrecio)), na.rm = TRUE)
+
+test_data4c$predictions3 <-predict(tree_rpart2_robc , newdata = test_data4c)
+mae_value2 <- mean(abs(exp(test_data4c$predictions3) - exp(test_data4c$lPrecio)), na.rm = TRUE)
+test_datat1<-rbind(test_data4a, test_data4c)
+mae_valuetotal1<- mean(abs(exp(test_datat1$predictions3) - exp(test_datat$lPrecio)), na.rm = TRUE)
+cat("MAE en datos de prueba:", mae_valuetotal1, "\n")
+
+
+#install.packages("xgboost")
+library(xgboost)
+
+
+# Lista de nombres de variables que deseas incluir en el modelo
+variables_incluidas <- c("Habitaciones","Habitaciones2", "Baños", "Area","M2_por_Habitacion", "lat", "lon", "Terraza",
+                         "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
+                         "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos",
+                         "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos", "Sala_BBQ_terraza")
+
+
+# Conjunto de datos de entrenamiento con variables seleccionadas
+train_data4a_subset <- train_data4a[, c("lPrecio", variables_incluidas)]
+
+# Conjunto de datos de prueba con variables seleccionadas
+test_data4a_subset <- test_data4a[, c("lPrecio", variables_incluidas)]
+
+set.seed(123)
+# Ajusta el modelo en el conjunto de entrenamiento con variables seleccionadas
+model_xgboost_subseta <- xgboost(
+  data = as.matrix(train_data4a_subset[, -1]),  # Excluye la columna de lPrecio
+  label = train_data4a_subset$lPrecio,
+  booster = "gbtree",
+  nrounds = 100,
+  max_depth = 10,
+  eta = 0.3,
+  objective = "reg:linear",
+  eval_metric = "mae"
+)
+
+# Realiza predicciones en el conjunto de prueba con variables seleccionadas
+predictions_xgboost_subseta <- predict(model_xgboost_subseta, as.matrix(test_data4a_subset[, -1]))
+
+# Calcular el MAE de manera manual con variables seleccionadas
+mae_value_xgboost_subseta <- mean(abs(exp(predictions_xgboost_subseta) - exp(test_data4a_subset$lPrecio)), na.rm = TRUE)
+
+
+mae_value_xgboost_subseta
+
+############################# CASAS 
+# Conjunto de datos de entrenamiento con variables seleccionadas
+train_data4c_subset <- train_data4c[, c("lPrecio", variables_incluidas)]
+
+# Conjunto de datos de prueba con variables seleccionadas
+test_data4c_subset <- test_data4c[, c("lPrecio", variables_incluidas)]
+
+# Ajusta el modelo en el conjunto de entrenamiento con variables seleccionadas
+model_xgboost_subsetc <- xgboost(
+  data = as.matrix(train_data4c_subset[, -1]),  # Excluye la columna de lPrecio
+  label = train_data4c_subset$lPrecio,
+  booster = "gbtree",
+  nrounds = 200,
+  max_depth = 14,
+  eta = 0.5,
+  objective = "reg:linear",
+  eval_metric = "mae"
+)
+
+# Realiza predicciones en el conjunto de prueba con variables seleccionadas
+predictions_xgboost_subsetc <- predict(model_xgboost_subsetc, as.matrix(test_data4c_subset[, -1]))
+
+# Calcular el MAE de manera manual con variables seleccionadas
+mae_value_xgboost_subsetc <- mean(abs(exp(predictions_xgboost_subsetc) - exp(test_data4c_subset$lPrecio)), na.rm = TRUE)
+
+mae_value_xgboost_subsetc
+
+
+# Realiza predicciones en el conjunto de prueba para casas
+test_data4a$predictions4 <- predict(model_xgboost_subseta, newdata = as.matrix(test_data4a_subset[, -1]))
+
+# Calcular el MAE de manera manual para casas
+mae_value4c <- mean(abs(exp(test_data4c$predictions4) - exp(test_data4c$lPrecio)), na.rm = TRUE)
+
+# Realiza predicciones en el conjunto de prueba para apartamentos
+test_data4c$predictions4 <- predict(model_xgboost_subsetc, newdata = as.matrix(test_data4c_subset[, -1]))
+
+# Calcular el MAE de manera manual para apartamentos
+mae_value4a <- mean(abs(exp(test_data4a$predictions4) - exp(test_data4a$lPrecio)), na.rm = TRUE)
+
+# Combinar los resultados de casas y apartamentos
+test_data_combined <- rbind(test_data4c, test_data4a)
+mae_value_total <- mean(abs(exp(test_data_combined$predictions4) - exp(test_data_combined$lPrecio)), na.rm = TRUE)
+
+cat("MAE en datos de prueba para casas:", mae_value4c, "\n")
+cat("MAE en datos de prueba para apartamentos:", mae_value4a, "\n")
+cat("MAE total en datos de prueba:", mae_value_total, "\n")
+
+
+####-------------------------------apartamentos------------------------------####
+set.seed(123)
+# Ajusta el modelo en el conjunto de entrenamiento con variables seleccionadas
+model_xgboost_subseta <- xgboost(
+  data = as.matrix(train_apart4[, -1]),  # Excluye la columna de lPrecio
+  label = train_apart4$lPrecio,
+  booster = "gbtree",
+  nrounds = 100,
+  max_depth = 10,
+  eta = 0.3,
+  objective = "reg:linear",
+  eval_metric = "mae"
+)
+
+# Realiza predicciones en el conjunto de prueba con variables seleccionadas
+predictions_xgboost_subsetc <- predict(model_xgboost_subsetc, as.matrix(test_data4c_subset[, -1]))
+
+
+####-------------------------------Casas------------------------------####
+# Ajusta el modelo en el conjunto de entrenamiento con variables seleccionadas
+model_xgboost_subsetc <- xgboost(
+  data = as.matrix(train_casas4[, -1]),  # Excluye la columna de lPrecio
+  label = train_casas4$lPrecio,
+  booster = "gbtree",
+  nrounds = 200,
+  max_depth = 14,
+  eta = 0.5,
+  objective = "reg:linear",
+  eval_metric = "mae"
+)
+
+
+
+
+##################################################################
+arbol1c <- data.frame(test_casas1$property_id, exp(predict(model_xgboost_subsetc, newdata = test_casas1)))
+colnames(arbol1) <- c("property_id", "price")
+arbol1p <- data.frame(test_apart1$property_id, exp(predict(model_xgboost_subseta, newdata = test_apart1)))
+colnames(Pred_apart_arb7) <- c("property_id", "price")
+Pred_arbol_fm7<- rbind(arbol1c, arbol1p)
+
+
+
+# Define las variables comunes
+variables_comunes <- c("Habitaciones", "Habitaciones2", "Baños", "Area", "M2_por_Habitacion", "lat", "lon", "Terraza",
+                       "Garaje", "Sala_BBQ", "Piscina", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques",
+                       "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", 
+                       "Dist_Restaurantes", "Dist_Bancos", "Sala_BBQ_terraza")
+
+# Crear un objeto xgb.DMatrix para los datos de prueba de casas con variables comunes
+dtest_casas <- xgb.DMatrix(data = as.matrix(test_casas1[, c("lPrecio", variables_comunes)]))
+
+# Realizar predicciones para casas
+predictions_casas <- predict(model_xgboost_subsetc, newdata = dtest_casas)
+
+# Luego, puedes combinar las predicciones con el ID de la propiedad
+arbol1c <- data.frame(property_id = test_casas1$property_id, price = exp(predictions_casas))
