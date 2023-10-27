@@ -2445,7 +2445,7 @@ Pred_ols_4 <- rbind(Pred_casa_ols_4, Pred_apart_ols_4)
 
 Precios_Prod_ols <- aggregate(Pred_ols_4$Precio, by = list(Pred_ols_4$Fecha), FUN = mean)
 colnames(Precios_Prod_ols) <- c("Fecha", "Precio_Promedio")
-Precios_Prod_ols$Tipo <- "Observado"
+Precios_Prod_ols$Tipo <- "Predicción"
 
 
 g_ols <- ggplot() +
@@ -2583,7 +2583,7 @@ Pred_rgd_4 <- rbind(Pred_casa_rgd_4, Pred_apart_rgd_4)
 
 Precios_Prod_rgd <- aggregate(Pred_rgd_4$Precio, by = list(Pred_rgd_4$Fecha), FUN = mean)
 colnames(Precios_Prod_rgd) <- c("Fecha", "Precio_Promedio")
-Precios_Prod_rgd$Tipo <- "Observado"
+Precios_Prod_rgd$Tipo <- "Predicción"
 
 
 g_rgd <- ggplot() +
@@ -2603,10 +2603,6 @@ g_rgd <- ggplot() +
     panel.grid = element_line(color = "gray")
   )
 g_rgd
-
-
-
-
 
 
 # ------------------------------------------LASSO--------------------------------------------- #
@@ -2689,7 +2685,7 @@ Pred_ls_4 <- rbind(Pred_casa_ls_4, Pred_apart_ls_4)
 
 Precios_Prod_ls <- aggregate(Pred_ls_4$Precio, by = list(Pred_ls_4$Fecha), FUN = mean)
 colnames(Precios_Prod_ls) <- c("Fecha", "Precio_Promedio")
-Precios_Prod_ls$Tipo <- "Observado"
+Precios_Prod_ls$Tipo <- "Predicción"
 
 
 g_ls <- ggplot() +
@@ -2790,7 +2786,7 @@ Pred_en_4 <- rbind(Pred_casa_en_4, Pred_apart_en_4)
 
 Precios_Prod_en <- aggregate(Pred_en_4$Precio, by = list(Pred_en_4$Fecha), FUN = mean)
 colnames(Precios_Prod_en) <- c("Fecha", "Precio_Promedio")
-Precios_Prod_en$Tipo <- "Observado"
+Precios_Prod_en$Tipo <- "Predicción"
 
 
 g_en <- ggplot() +
@@ -2811,22 +2807,6 @@ g_en <- ggplot() +
   )
 g_en
 
-# --------------------ERRORES DE PREDICCION FUERA DE MUESTRA-------------------------- #
-
-test_E4 <- rbind(test_aE4, test_cE4)
-
-MAE_1 <- mean(abs(exp(test_E4$Predict_ols) - test_E4$Precio))
-MAE_2 <- mean(abs(exp(test_E4$Predict_rgd) - test_E4$Precio))
-MAE_3 <- mean(abs(exp(test_E4$Predict_ls) - test_E4$Precio))
-MAE_4 <- mean(abs(exp(test_E4$Predict_en) - test_E4$Precio))
-
-# Luego puedes almacenar los resultados en un dataframe
-Errores_MAE <- data.frame(
-  Modelo = c("OLS", "Ridge", "Lasso", "Elastic_Net"),
-  MAE = c(MAE_1, MAE_2, MAE_3, MAE_4)
-)
-
-print(Errores_MAE)
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA OLS-------------------------------# 
 
@@ -2876,3 +2856,140 @@ tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_en1.csv
 write.csv(x = Pred_en_fm4,
           file = paste0(tabla_pronost, 'Pred_en.csv'),
           row.names = FALSE)
+
+
+# -----------------------------ESTIMACION CON EL METODO BOOSTING------------------------------------- #
+# ----------------------------------------------APARTAMENTOS ----------------------------------------- #
+
+set.seed(123)
+#p_load("caret")
+#p_load("bst")
+fitControl<-trainControl(method ="cv", number=5)
+
+tree_boosted_a <- train(
+  lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+  + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_aE4,
+  method = "bstTree",
+  trControl = fitControl,
+  tuneGrid=expand.grid(
+    mstop = c(500), #Boosting Iterations (M)
+    maxdepth = c(3), # Max Tree Depth (d)
+    nu = c(0.01)) # Shrinkage (lambda)
+)
+
+tree_boosted_a
+
+test_aE4$Predict_bst<-predict(tree_boosted_a,newdata=test_aE4)
+
+# ----------------------------------------------CASAS ----------------------------------------- #
+
+set.seed(123)
+tree_boosted_c <- train(
+  lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+  + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_cE4,
+  method = "bstTree",
+  trControl = fitControl,
+  tuneGrid=expand.grid(
+    mstop = c(500), #Boosting Iterations (M)
+    maxdepth = c(3), # Max Tree Depth (d)
+    nu = c(0.01)) # Shrinkage (lambda)
+)
+
+tree_boosted_c
+
+test_cE4$Predict_bst<-predict(tree_boosted_c,newdata=test_cE4)
+
+Pred_casa_bst_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_bst))
+colnames(Pred_casa_bst_4) <- c("property_id", "Fecha", "Precio")
+Pred_apart_bst_4<- data.frame(test_aE4$property_id, test_aE4$Fecha, exp(test_aE4$Predict_bst))
+colnames(Pred_apart_bst_4) <- c("property_id", "Fecha", "Precio")
+Pred_bst_4 <- rbind(Pred_casa_bst_4, Pred_apart_bst_4)
+
+Precios_Prod_bst <- aggregate(Pred_bst_4$Precio, by = list(Pred_bst_4$Fecha), FUN = mean)
+colnames(Precios_Prod_bst) <- c("Fecha", "Precio_Promedio")
+Precios_Prod_bst$Tipo <- "Predicción"
+
+
+g_bst <- ggplot() +
+  geom_line(data = Precios_Prod_4, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
+  geom_line(data = Precios_Prod_bst, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio Boosting",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_bst
+
+
+test_cE4$Predict_bst<-predict(tree_boosted_c,newdata=test_cE4)
+
+
+# --------------------ERRORES DE PREDICCION FUERA DE MUESTRA-------------------------- #
+
+test_E4 <- rbind(test_aE4, test_cE4)
+
+MAE_1 <- mean(abs(exp(test_E4$Predict_ols) - test_E4$Precio))
+MAE_2 <- mean(abs(exp(test_E4$Predict_rgd) - test_E4$Precio))
+MAE_3 <- mean(abs(exp(test_E4$Predict_ls) - test_E4$Precio))
+MAE_4 <- mean(abs(exp(test_E4$Predict_en) - test_E4$Precio))
+MAE_5 <- mean(abs(exp(test_E4$Predict_bst) - test_E4$Precio))
+
+# Luego puedes almacenar los resultados en un dataframe
+Errores_MAE <- data.frame(
+  Modelo = c("OLS", "Ridge", "Lasso", "Elastic_Net","Boosting"),
+  MAE = c(MAE_1, MAE_2, MAE_3, MAE_4, MAE_5)
+)
+
+print(Errores_MAE)
+
+##---------------- Predict Boosting Estrato 4------------------------
+# APARTAMENTOS
+tree_boosted_at <- train(
+  lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+  + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_apart_E4,
+  method = "bstTree",
+  trControl = fitControl,
+  tuneGrid=expand.grid(
+    mstop = c(500), #Boosting Iterations (M)
+    maxdepth = c(3), # Max Tree Depth (d)
+    nu = c(0.01)) # Shrinkage (lambda)
+)
+tree_boosted_at
+
+test_apart_4$Predict_bst<-predict(tree_boosted_at, newdata=test_apart_4)
+
+# CASAS
+tree_boosted_ct <- train(
+  lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+  + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_casas_E4,
+  method = "bstTree",
+  trControl = fitControl,
+  tuneGrid=expand.grid(
+    mstop = c(500), #Boosting Iterations (M)
+    maxdepth = c(3), # Max Tree Depth (d)
+    nu = c(0.01)) # Shrinkage (lambda)
+)
+tree_boosted_ct
+
+test_casas_4$Predict_bst<-predict(tree_boosted_ct, newdata=test_casas_4)
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA ELASTIC NET-----------------------------# 
+
+Pred_casas_bst4 <- data.frame(test_casas_4$property_id, exp(test_casas_4$Predict_bst))
+colnames(Pred_casas_bst4) <- c("property_id", "Precio_Pred_bst")
+Pred_apart_bst4 <- data.frame(test_apart_4$property_id, exp(test_apart_4$Predict_bst))
+colnames(Pred_apart_bst4) <- c("property_id", "Precio_Pred_bst")
+Pred_bst_fm4 <- rbind(Pred_casas_bst4, Pred_apart_bst4)
+tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_bst.csv"  
+write.csv(x = Pred_bst_fm4,
+          file = paste0(tabla_pronost, 'Pred_bst.csv'),
+          row.names = FALSE)
+
