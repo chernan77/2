@@ -721,11 +721,26 @@ train$localidad[train$distancia_puente_aranda < umbral_grados_puente_aranda] <- 
 # Elimina las columnas de distancia si ya no son necesarias
 train <- train %>% select(-distancia_santa_fe, -distancia_usaquen, -distancia_teusaquillo, -distancia_candelaria,-distancia_engativa,-distancia_suba,-distancia_bosa, -distancia_kennedy, -distancia_fontibon, -distancia_ciudad_bolivar,-distancia_antonio_narino, -distancia_usme,-distancia_barrios_unidos,-distancia_san_cristobal,-distancia_rafael_uribe, -distancia_los_martirez, -distancia_tunjuelito, -distancia_puente_aranda)
 
+train_porcentaje <- train %>%
+  group_by(localidad) %>%
+  summarise(cantidad = n()) %>%
+  mutate(porcentaje = cantidad / sum(cantidad) * 100)
 
-ggplot(train, aes(x = localidad)) +
-  geom_bar(fill = "blue") +
-  labs(title = "Distribución de Localidades") +
-  coord_flip()
+graph_loc <- ggplot(train_porcentaje, aes(x = localidad, y = cantidad)) +
+  geom_col(linewidth = 1.5, fill = "blue") +
+  geom_text(aes(label = paste0(round(porcentaje), "%")), 
+            position = position_stack(vjust = 1.1)) +
+  labs(title = "Grafica 1: Distribución de Propiedades por Localidad",
+       x = "Localidad",
+       y = "Cantidad") +
+  coord_flip() +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.line = element_line(color = "gray"),
+        panel.background = element_rect(fill = "transparent", color = NA),
+        panel.grid = element_line(color = "gray"))
+
+graph_loc
+
 
 
 distant <- data.frame(
