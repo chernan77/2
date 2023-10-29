@@ -1741,8 +1741,8 @@ Model1 <- lm(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + Latitud
 Model1_stargazer <- stargazer(Model1, type="text", omit.stat=c("ser","f","adj.rsq"))
 Model1_stargazer <- as.data.frame(Model1_stargazer)
 train_casas1$Pred_Precios <- predict(Model1, newdata = train_casas1)
-Rega <- "C:/Output R/Taller 2/Taller_2/document/Mod_stargazer.xlsx"
-write_xlsx(Model1_stargazer, path = Rega )
+#Rega <- "C:/Output R/Taller 2/Taller_2/document/Mod_stargazer.xlsx"
+#write_xlsx(Model1_stargazer, path = Rega )
 
 
 Y=train_casas1$Pred_Precios
@@ -2082,10 +2082,10 @@ colnames(Pred_apart_ols) <- c("property_id", "Precio_Pred_ols")
 Pred_ols_fm <- rbind(Pred_casas_ols, Pred_apart_ols)
 
 
-tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pronost_ols.csv"  
-write.csv(x = Pred_ols_fm,
-          file = paste0(tabla_pronost, 'Pronost_ols.csv'),
-          row.names = FALSE)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pronost_ols.csv"  
+#write.csv(x = Pred_ols_fm,
+#file = paste0(tabla_pronost, 'Pronost_ols.csv'),
+#row.names = FALSE)
 
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA RIDGE-----------------------------# 
@@ -2266,8 +2266,8 @@ Mod_1.3 <- lm(lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacio
                 Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_casas_E4 )
 Mod_1.3_stargazer <- stargazer(Mod_1.3, type = "text", omit.stat = c("ser", "f", "adj.rsq"))
 Mod_1.3_stargazer <- as.data.frame(Mod_1.3_stargazer)
-Regc2 <- "C:/Output R/Taller 2/Taller_2/document/Mod_1.3_stargazer.xlsx"
-write_xlsx(Mod_1.3_stargazer, path = Regc2)
+#Regc2 <- "C:/Output R/Taller 2/Taller_2/document/Mod_1.3_stargazer.xlsx"
+#write_xlsx(Mod_1.3_stargazer, path = Regc2)
 
 
 
@@ -2375,8 +2375,8 @@ Mod_2.3 <- lm(lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacio
                 Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_apart_E4 )
 Mod_2.3_stargazer <- stargazer(Mod_2.3, type = "text", omit.stat = c("ser", "f", "adj.rsq"))
 Mod_2.3_stargazer <- as.data.frame(Mod_2.3_stargazer)
-Rega2 <- "C:/Output R/Taller 2/Taller_2/document/Mod_2.3_stargazer.xlsx"
-write_xlsx(Mod_2.3_stargazer, path = Rega2)
+#Rega2 <- "C:/Output R/Taller 2/Taller_2/document/Mod_2.3_stargazer.xlsx"
+#write_xlsx(Mod_2.3_stargazer, path = Rega2)
 
 #-----------------------------------------------------------------------------------------------------------------
 
@@ -2772,10 +2772,10 @@ colnames(Pred_casas_ols4) <- c("property_id", "Precio_Pred_ols1")
 Pred_apart_ols4 <- data.frame(test_apart1$property_id, exp(predict(Reg2.3_, new_data = test_apart1)))
 colnames(Pred_apart_ols4) <- c("property_id", "Precio_Pred_ols1")
 Pred_ols_fm4 <- rbind(Pred_casas_ols4, Pred_apart_ols4)
-tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_ols1.csv"  
-write.csv(x = Pred_ols_fm4,
-          file = paste0(tabla_pronost, 'Pred_ols1.csv'),
-          row.names = FALSE)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_ols1.csv"  
+#write.csv(x = Pred_ols_fm4,
+#file = paste0(tabla_pronost, 'Pred_ols1.csv'),
+# row.names = FALSE)
 
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA RIDGE-----------------------------# 
@@ -2785,10 +2785,10 @@ colnames(Pred_casas_rgd4) <- c("property_id", "Precio_Pred_rgd")
 Pred_apart_rgd4 <- data.frame(test_apart1$property_id, exp(predict(Ridge_a, new_data = test_apart1)))
 colnames(Pred_apart_rgd4) <- c("property_id", "Precio_Pred_rgd")
 Pred_rgd_fm4 <- rbind(Pred_casas_rgd4, Pred_apart_rgd4)
-tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_rgd1.csv"  
-write.csv(x = Pred_rgd_fm4,
-          file = paste0(tabla_pronost, 'Pred_rgd1.csv'),
-          row.names = FALSE)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_rgd1.csv"  
+#write.csv(x = Pred_rgd_fm4,
+#file = paste0(tabla_pronost, 'Pred_rgd1.csv'),
+# row.names = FALSE)
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA LASSO-----------------------------# 
 
@@ -2797,10 +2797,10 @@ colnames(Pred_casas_ls4) <- c("property_id", "Precio_Pred_ls")
 Pred_apart_ls4 <- data.frame(test_apart1$property_id, exp(predict(Lasso_a, new_data = test_apart1)))
 colnames(Pred_apart_ls4) <- c("property_id", "Precio_Pred_ls")
 Pred_ls_fm4 <- rbind(Pred_casas_ls4, Pred_apart_ls4)
-tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_ls1.csv"  
-write.csv(x = Pred_ls_fm4,
-          file = paste0(tabla_pronost, 'Pred_ls.csv'),
-          row.names = FALSE)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_ls1.csv"  
+#write.csv(x = Pred_ls_fm4,
+#file = paste0(tabla_pronost, 'Pred_ls.csv'),
+#row.names = FALSE)
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA ELASTIC NET-----------------------------# 
 
@@ -2809,10 +2809,10 @@ colnames(Pred_casas_en4) <- c("property_id", "Precio_Pred_en")
 Pred_apart_en4 <- data.frame(test_apart1$property_id, exp(predict(elasNet_a, new_data = test_apart1)))
 colnames(Pred_apart_en4) <- c("property_id", "Precio_Pred_en")
 Pred_en_fm4 <- rbind(Pred_casas_en4, Pred_apart_en4)
-tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_en1.csv"  
-write.csv(x = Pred_en_fm4,
-          file = paste0(tabla_pronost, 'Pred_en.csv'),
-          row.names = FALSE)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_en1.csv"  
+#write.csv(x = Pred_en_fm4,
+#  file = paste0(tabla_pronost, 'Pred_en.csv'),
+# row.names = FALSE)
 
 
 # -----------------------------ESTIMACION CON EL METODO BOOSTING------------------------------------- #
@@ -2945,8 +2945,8 @@ colnames(Pred_casas_bst4) <- c("property_id", "Precio_Pred_bst")
 Pred_apart_bst4 <- data.frame(test_apart_4$property_id, exp(test_apart_4$Predict_bst))
 colnames(Pred_apart_bst4) <- c("property_id", "Precio_Pred_bst")
 Pred_bst_fm4 <- rbind(Pred_casas_bst4, Pred_apart_bst4)
-tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_bst.csv"  
-write.csv(x = Pred_bst_fm4,
-          file = paste0(tabla_pronost, 'Pred_bst.csv'),
-          row.names = FALSE)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_bst.csv"  
+#write.csv(x = Pred_bst_fm4,
+# file = paste0(tabla_pronost, 'Pred_bst.csv'),
+# row.names = FALSE)
 
