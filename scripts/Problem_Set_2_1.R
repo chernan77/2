@@ -1836,8 +1836,8 @@ Model5 <- lm(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_
 Model5_stargazer <- stargazer(Model5, type="text", omit.stat=c("ser","f","adj.rsq"))
 Model5_stargazer <- as.data.frame(Model5_stargazer)
 train_apart1$Pred_Precios1 <- predict(Model5, newdata = train_apart1)
-Regc <- "C:/Output R/Taller 2/Taller_2/document/Modc_stargazer.xlsx"
-write_xlsx(Model5_stargazer, path = Regc )
+#Regc <- "C:/Output R/Taller 2/Taller_2/document/Modc_stargazer.xlsx"
+#write_xlsx(Model5_stargazer, path = Regc )
 
 
 # ------------------------------------Grafica Predicciones OLS-------------------------- #
@@ -1847,7 +1847,7 @@ Precio_apart_t <- data.frame(train_apart1$property_id, train_apart1$Fecha, train
 colnames(Precio_apart_t) <- c("property_id", "Fecha", "Precio")
 Precio_casa_t <- data.frame(train_casas1$property_id,train_casas1$Fecha, train_casas1$Precio)
 colnames(Precio_casa_t) <- c("property_id", "Fecha","Precio")
-Precios_t <- rbind(Precio_apart_t, Precio_apart_4)
+Precios_t <- rbind(Precio_apart_t, Precio_apart_t)
 
 Precios_Prod_t <- aggregate(Precios_t$Precio, by = list(Precios_t$Fecha), FUN = mean)
 colnames(Precios_Prod_t) <- c("Fecha", "Precio_Promedio")
