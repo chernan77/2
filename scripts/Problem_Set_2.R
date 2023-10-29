@@ -3,26 +3,31 @@
 
 # Celin Hernández: 202210067
 # Merit Tejeda: 202210104
+# Estefanía Laborde: 201533743
 
-#install.packages("readxl")
-#install.packages("pacman")
-#install.packages("osmdata")
-#install.packages("leaflet")
-#install.packages("dplyr")
-#install.packages("rgeos")
-#install.packages("openxlsx")
-#install.packages("ggplot2")
-#install.packages("writexl")
-#install.packages("geosphere")
-#install.packages("ggmap")
-#install.packages("geopy")
-#install.packages("stargazer")
-#install.packages("zoo")
-#install.packages("gridExtra")
-#install.packages("tidyverse")
-#install.packages("rvest")
-#install.packages("sf")
-
+install.packages("readxl")
+install.packages("readr")
+install.packages("pacman")
+install.packages("osmdata")
+install.packages("leaflet")
+install.packages("dplyr")
+install.packages("rgeos")
+install.packages("openxlsx")
+install.packages("ggplot2")
+install.packages("writexl")
+install.packages("geosphere")
+install.packages("ggmap")
+install.packages("geopy")
+install.packages("stargazer")
+install.packages("zoo")
+install.packages("gridExtra")
+install.packages("tidyverse")
+install.packages("rvest")
+install.packages("sf")
+install.packages("glmnet")
+install.packages("broom")
+install.packages("caret")
+install.packages("Matrix")
 library(osmdata)
 library(leaflet)
 library(ggplot2)
@@ -39,6 +44,11 @@ library(zoo)
 library(tidyverse)
 library(rvest)
 library(sf)
+library(readr)
+library(glmnet)
+library(broom)
+library(caret)
+library(Matrix)
 
 # Cargar las librerías listadas e instalarlas en caso de ser necesario
 p_load(tidyverse, # Manipular dataframes
@@ -52,20 +62,11 @@ p_load(tidyverse, # Manipular dataframes
        tidymodels,
        dplyr) #para modelos de ML
 
-#carpeta <- "C:/Output R/Taller 2/Taller_2/stores/"
-carpeta <- "C:/Users/Usuario/Documents/Machine Learning/Taller_2/stores/"
+submission_template <- read.xlsx("https://github.com/chernan77/Data_Taller2/raw/main/submission_template.xlsx")
+train <- read.xlsx("https://github.com/chernan77/Data_Taller2/raw/main/train.xlsx")
+test <- read.xlsx("https://github.com/chernan77/Data_Taller2/raw/main/test.xlsx")
+estrato <- read.xlsx("https://github.com/chernan77/Data_Taller2/raw/main/estrato.xlsx")
 
-archivos_a_importar <- c("test.csv", "train.csv", "submission_template.csv")
-
-# Crea bases de datos separadas para cada archivo
-for (archivo in archivos_a_importar) {
-  
-  nombre <- tools::file_path_sans_ext(archivo)
-  
-  assign(nombre, read.csv(file.path(carpeta, archivo)))
-}
-
-estrato <- read_excel("C:/Users/Usuario/Documents/Machine Learning/Taller_2/stores/estrato.xlsx", sheet = "estrato")
 
 train %>%
   summarise_all(~sum(is.na(.))) %>% transpose()
@@ -103,11 +104,13 @@ train$bedrooms <- ifelse(is.na(train$bedrooms), mediana_bedrooms, train$bedrooms
 train <- train %>%
   mutate(surface_total = ifelse(is.na(surface_total), surface_covered, surface_total))
 
+train %>%
+  summarise_all(~sum(is.na(.))) %>% transpose()
+
 # Primero normalizaremos todo el texto
-# Todo en minuscula
 train <- train %>%
   mutate(description = str_to_lower(description))
-# Eliminamos tildes
+# Eliminacion de tildes
 train <- train %>%
   mutate(description = iconv(description, from = "UTF-8", to = "ASCII//TRANSLIT"))
 # Eliminamos caracteres especiales
@@ -117,100 +120,140 @@ train <- train %>%
 train <- train %>%
   mutate(description = str_trim(gsub("\\s+", " ", description)))
 
-#### otra forma
-# Crear una nueva columna "metros_cuadrados" basada en la descripción
-train$metros_cuadrados <- NA
+# Expresión regular para encontrar valores numéricos seguidos de patrones
+patron <- "\\d+(\\.\\d+)?\\s*(mts|mts²|m²|m2|metros cuadrados|metro cuadrado)"
 
-for (i in 1:nrow(train)) {
-  descripcion <- train$description[i]
-  
-  # Buscar todas las coincidencias de números seguidos de "mts" o variantes
-  coincidencias <- gregexpr("\\d+(\\.\\d+)?\\s*(mts|mts²|m²|m2|metros cuadrados|metro cuadrado)", descripcion)
-  
-  # Extraer todas las coincidencias
-  todas_coincidencias <- regmatches(descripcion, coincidencias)[[1]]
-  
-  # Encontrar la coincidencia más cercana a la palabra "metros"
-  metros_cuadrados <- NA
-  distancia_minima <- Inf
-  
-  for (coincidencia in todas_coincidencias) {
-    distancia_a_metros <- min(gregexpr("metros", coincidencia)[[1]])
-    
-    if (distancia_a_metros < distancia_minima) {
-      distancia_minima <- distancia_a_metros
-      metros_cuadrados <- coincidencia
+# Extraer valores numéricos y convertirlos a valores numéricos
+train$metros_cuadrados <- sapply(str_extract_all(train$description, patron), function(x) {
+  if (length(x) > 0) {
+    numero <- as.numeric(gsub("[^0-9.]", "", x[1]))
+    if (!is.na(numero) && nchar(numero) >= 4 && substr(numero, nchar(numero), nchar(numero)) == "2") {
+      numero <- substr(numero, 1, nchar(numero) - 1)
     }
+    numero
+  } else {
+    NA
   }
-  
-  # Si se encontró una coincidencia, extraer el valor de metros cuadrados
-  if (!is.na(metros_cuadrados)) {
-    valor_metros <- regmatches(metros_cuadrados, gregexpr("\\d+(\\.\\d+)?", metros_cuadrados))[[1]]
-    train$metros_cuadrados[i] <- as.numeric(valor_metros)
-  }
-}
+})
 
-# Obtener un resumen estadístico de la variable "metros_cuadrados"
-resumen <- summary(train$metros_cuadrados)
-#sustituir con NA LOS 0 de los
-# Reemplazar los valores 0 con NA en la columna metros_cuadrados
 train <- train %>%
-  mutate(metros_cuadrados = ifelse(metros_cuadrados == 0, NA, metros_cuadrados))
-
-# Imprimir el resumen
-print(resumen)
-
-#### remplazar metros cuadrados solo cuando surface sea na
-# Crear una nueva variable "nueva_surface" que reemplace "surface" con "metros_cuadrados" cuando "surface" sea NA
-train <- train %>%
-  mutate(nueva_surface = ifelse(is.na(surface_total), metros_cuadrados, surface_total))
-train %>%
-  summarise_all(~sum(is.na(.))) %>% transpose()
-# Obtener un resumen estadístico de la variable "nueva_surface"
-resumen_nueva_surface <- summary(train$nueva_surface)
-
-# Imprimir el resumen
-print(resumen_nueva_surface)
-
-frecuencias <- table(train$nueva_surface)
-moda <- names(frecuencias)[which.max(frecuencias)]
+  mutate(surface_total = ifelse(is.na(surface_total), metros_cuadrados, surface_total))
 
 train$rooms <- as.numeric(train$rooms)
 train$bedrooms <- as.numeric(train$bedrooms)
 train$bathrooms <- as.numeric(train$bathrooms)
 train$surface_total <- as.numeric(train$surface_total)
 train$surface_covered <- as.numeric(train$surface_covered)
-train$nueva_surface <- as.numeric(train$nueva_surface)
+
+train$bedrooms <- ifelse(train$bedrooms == 0, train$rooms, train$bedrooms)
+mediana_bedrooms <- median(train$bedrooms, na.rm = TRUE)
+train$bedrooms <- ifelse(is.na(train$bedrooms), mediana_bedrooms, train$bedrooms)
 
 train <- train %>%
-  mutate(metros_cuadrados_por_bedrooms = metros_cuadrados / bedrooms)
-summary(train$metros_cuadrados_por_bedrooms)
+  mutate(metros_cuadrados_bedrooms = surface_total / bedrooms)
+summary(train$metros_cuadrados_bedrooms)
 
-train <- train %>%
+train$metros_cuadrados_bedrooms <- as.numeric(train$metros_cuadrados_bedrooms)
+train$metros_cuadrados <- as.numeric(train$metros_cuadrados)
+
+##-------------------------------------Casas---------------------------------##
+promedio_metros_casas <- train %>%
+  filter(property_type == "Casa", bedrooms > 0) %>%
   group_by(bedrooms) %>%
-  mutate(
-    Q1 = quantile(nueva_surface, 0.25, na.rm = TRUE),
-    Q3 = quantile(nueva_surface, 0.75, na.rm = TRUE),
-    IQR_valor = Q3 - Q1,
-    umbral_inferior = max(Q1 - 1.5 * IQR_valor, 49),
-    umbral_superior = Q3 + 1.5 * IQR_valor
-  )
+  filter(metros_cuadrados_bedrooms <= quantile(metros_cuadrados_bedrooms, 0.95, na.rm = TRUE)) %>%
+  summarize(promedio = mean(metros_cuadrados_bedrooms, na.rm = TRUE))
 
-# Imputar valores mínimos y máximos basados en umbrales por número de habitaciones
-train$nueva_surface <- pmax(train$nueva_surface, train$umbral_inferior)
-train$nueva_surface <- pmin(train$nueva_surface, train$umbral_superior)
-summary(train$nueva_surface)
+promedio_metros_casas
+
+# Accede a la media directamente desde el marco de datos resultante
+media_metros_cuadrados_bedrooms <- promedio_metros_casas$promedio
+
+# Calculo de la Media y Varianza Casas
+media_m2_bedrooms <- c(140, 77.4, 63.6, 55.3, 49.2, 41, 37.2, 28.6, 26.5, 30.5, 19.8)
+media_m2_bedrooms <- c(77.4, 63.6, 55.3, 49.2, 41, 37.2, 28.6, 26.5, 30.5, 19.8)
+
+media_m2_bedrooms_casas <- mean(media_m2_bedrooms)
+desv_media_m2_bedrooms_casas <- sd(media_m2_bedrooms)
+max_media_m2_bedrooms_casas = media_m2_bedrooms_casas+2*desv_media_m2_bedrooms_casas
+min_media_m2_bedrooms_casas = media_m2_bedrooms_casas-2*desv_media_m2_bedrooms_casas
+
+train$metros_cuadrados_bedrooms[train$property_type == "Casa" & train$metros_cuadrados_bedrooms < min_media_m2_bedrooms_casas] <- min_media_m2_bedrooms_casas
+train$metros_cuadrados_bedrooms[train$property_type == "Casa" & train$metros_cuadrados_bedrooms > max_media_m2_bedrooms_casas] <- max_media_m2_bedrooms_casas
+
+train$surface_total <- ifelse(train$property_type == "Casa" & (train$surface_total/train$bedrooms) < min_media_m2_bedrooms_casas,
+                              train$metros_cuadrados_bedrooms * train$bedrooms,
+                              train$surface_total)
+train$surface_total <- ifelse(train$property_type == "Casa" & (train$surface_total/train$bedrooms)  > max_media_m2_bedrooms_casas,
+                              train$metros_cuadrados_bedrooms * train$bedrooms,
+                              train$surface_total)
+
+promedio_metros_casas1 <- train %>%
+  filter(property_type == "Casa", !is.na(metros_cuadrados_bedrooms)) %>%
+  group_by(bedrooms) %>%
+  summarize(promedio = mean(metros_cuadrados_bedrooms, na.rm = TRUE))
 
 
-# Calcular la mediana de nueva_surface
-mediana_nueva_surface <- median(train$nueva_surface, na.rm = TRUE)
+train <- train %>%
+  left_join(promedio_metros_casas1, by = "bedrooms")
 
-# Sustituir los NA en nueva_surface con la mediana
-train$nueva_surface[is.na(train$nueva_surface)] <- mediana_nueva_surface
+train$metros_cuadrados_bedrooms <- ifelse(is.na(train$metros_cuadrados_bedrooms) & train$property_type == "Casa",
+                                          train$promedio, train$metros_cuadrados_bedrooms)
 
-# Calcular la media de nueva_surface por número de habitaciones
-media_por_numero_habitaciones <- aggregate(nueva_surface ~ bedrooms, data = train, FUN = mean, na.rm = TRUE)
-media_por_numero_habitaciones
+train <- train %>% select(-promedio)
+
+##-------------------------------------Apartamentos---------------------------------##
+
+promedio_metros_apart <- train %>%
+  filter(property_type == "Apartamento", bedrooms > 0) %>%
+  group_by(bedrooms) %>%
+  filter(metros_cuadrados_bedrooms <= quantile(metros_cuadrados_bedrooms, 0.95, na.rm = TRUE)) %>%
+  summarize(promedio = mean(metros_cuadrados_bedrooms, na.rm = TRUE))
+
+promedio_metros_apart
+
+# Accede a la media directamente desde el marco de datos resultante
+media_metros_cuadrados_bedrooms <- promedio_metros_casas$promedio
+
+# Calculo de la Media y Varianza Casas
+media_m2_bedrooms_a <- c(200, 108, 86, 113, 537, 31, 34, 29.8, 19.6, 20.4)
+media_m2_bedrooms_a <- c(108, 86, 113, 31, 34, 29.8, 19.6, 20.4)
+
+media_m2_bedrooms_apart <- mean(media_m2_bedrooms_a)
+desv_media_m2_bedrooms_apart <- sd(media_m2_bedrooms_a)
+max_media_m2_bedrooms_apart = media_m2_bedrooms_apart+1*desv_media_m2_bedrooms_apart
+min_media_m2_bedrooms_apart = media_m2_bedrooms_apart-1*desv_media_m2_bedrooms_apart
+
+train$metros_cuadrados_bedrooms[train$property_type == "Apartamento" & train$metros_cuadrados_bedrooms < min_media_m2_bedrooms_apart] <- min_media_m2_bedrooms_apart
+train$metros_cuadrados_bedrooms[train$property_type == "Apartamento" & train$metros_cuadrados_bedrooms > max_media_m2_bedrooms_apart] <- max_media_m2_bedrooms_apart
+
+train$surface_total <- ifelse(train$property_type == "Apartamento" & (train$surface_total/train$bedrooms) < min_media_m2_bedrooms_apart,
+                              train$metros_cuadrados_bedrooms * train$bedrooms,
+                              train$surface_total)
+train$surface_total <- ifelse(train$property_type == "Apartamento" & (train$surface_total/train$bedrooms)  > max_media_m2_bedrooms_apart,
+                              train$metros_cuadrados_bedrooms * train$bedrooms,
+                              train$surface_total)
+
+promedio_metros_apart1 <- train %>%
+  filter(property_type == "Apartamento", !is.na(metros_cuadrados_bedrooms)) %>%
+  group_by(bedrooms) %>%
+  summarize(promedio = mean(metros_cuadrados_bedrooms, na.rm = TRUE))
+
+train <- train %>%
+  left_join(promedio_metros_apart1, by = "bedrooms")
+
+train$metros_cuadrados_bedrooms <- ifelse(is.na(train$metros_cuadrados_bedrooms) & train$property_type == "Apartamento",
+                                          train$promedio, train$metros_cuadrados_bedrooms)
+
+train <- train %>% select(-promedio)
+
+train <- train %>%
+  mutate(surface_total = ifelse(is.na(surface_total), metros_cuadrados_bedrooms*bedrooms, surface_total))
+
+train$nueva_surface <- train$surface_total
+
+ggplot(train, aes(x = nueva_surface)) +
+  geom_histogram(bins = 30, fill = "blue", color = "black", alpha = 0.7) +
+  scale_y_log10()
 
 # Crear un gráfico de dispersión (scatter plot) para la correlación entre precio y metros cuadrados
 ggplot(train, aes(x = nueva_surface, y = price)) +
@@ -300,12 +343,49 @@ leaflet() %>%
   addCircles(lng = train$lon,
              lat = train$lat)
 
-library(dplyr)
+#-------------------------------VARIABLES DE DISTANCIAS-----------------------------#
+######--------------------------------PARQUES----------------------------------######
 
-## ---------------------------------Crear Terraza---------------------------------##
-# Crear una variable binaria "tiene_terrazz" basada en la descripción
-train$tiene_terraza <- as.numeric(grepl("terraza", train$description, ignore.case = TRUE))
+# Definir la ubicación de interés (en este caso, Bogotá, Colombia)
+localizacion <- "Bogotá, Colombia"
 
+# Obtener los límites geográficos (BBOX) de la ubicación
+bbox_bogota <- getbb(localizacion)
+parques <- opq(bbox = getbb("Bogotá, Colombia")) %>%
+  add_osm_feature(key = "leisure" , value = "park")
+
+# Cambiar el formato para que sea un objeto sf (simple features)
+parques_sf <- osmdata_sf(parques)
+parques_geometria <- parques_sf$osm_polygons %>%
+  select(osm_id, name)
+centroides <- st_centroid(parques_geometria)
+
+# Encontrar el centro del mapa
+latitud_central <- mean(bbox_bogota["lat"])
+longitud_central <- mean(bbox_bogota["lon"])
+
+# Crear el mapa de Bogotá con los parques
+leaflet() %>%
+  addTiles() %>%
+  setView(lng = longitud_central, lat = latitud_central, zoom = 12) %>%
+  addPolygons(data = parques_geometria, col = "red", weight = 10,
+              opacity = 0.8, popup = parques_geometria$name) %>%
+  addCircles(lng = st_coordinates(centroides)[, "X"],
+             lat = st_coordinates(centroides)[, "Y"],
+             col = "darkblue", opacity = 0.5, radius = 1)
+
+train1_sf <- st_as_sf(train, coords = c("lon", "lat"), crs = 4326)
+centroides_sf <- st_as_sf(centroides, coords = c("x", "y"), crs = 4326)
+distancias_parque <- st_distance(train1_sf, centroides_sf)
+dist_min_parques <- apply(distancias_parque, 1, min)
+train1_sf$distancias_parque <- dist_min_parques
+
+
+## ------------------------------------------------------------------------------##
+## ---------------------------------Crear Terraza--------------------------------##
+
+train$tiene_terraza <- as.numeric(grepl("terraza|azotea", train$description, ignore.case = TRUE))
+  
 # Mostrar las primeras filas del dataframe con la nueva variable
 head(train)
 table(train$tiene_terraza)
@@ -324,7 +404,7 @@ casas_con_piscina
 
 ## ---------------------------------Crear Gimnasio---------------------------------##
 
-train$Gimnasio <- as.numeric(grepl("gimnasio", train$description, ignore.case = TRUE))
+train$Gimnasio <- as.numeric(grepl("gimnasio|gym", train$description, ignore.case = TRUE))
 
 # Mostrar las primeras filas del dataframe con la nueva variable
 head(train)
@@ -371,9 +451,6 @@ train_filtrado_bogota <- train %>%
 train <- train %>%
   mutate(precio_por_mt2_sc =( (precio_por_mt2 - min(precio_por_mt2)) / (max(precio_por_mt2) - min(precio_por_mt2))))
 
-# Luego creamos una variable de color que debende del tipo de immueble.
-
-
 # Crear una nueva columna "color" basada en el tipo de propiedad
 train <- train %>%
   mutate(color = case_when(property_type == "Apartamento" ~ "#2A9D8F",
@@ -411,215 +488,131 @@ leaflet() %>%
              radius = train$precio_por_mt2_sc * 10,
              popup = html)
 
-#CREACIÓN DE VARIABLES
-# CREANDO PARQUES
+
+# Ahora solo nos quedaremos con las observaciones que efectivamente están dentro de Cali y no están mal georeferenciadas
+limites <- getbb("Bogotá, Colombia")
+train <- train %>%
+  filter(
+    between(lon, limites[1, "min"], limites[1, "max"]) & 
+      between(lat, limites[2, "min"], limites[2, "max"])
+  )
+
+train$bedrooms <- ifelse(train$bedrooms == 0, train$rooms, train$bedrooms)
+mediana_bedrooms <- median(train$bedrooms, na.rm = TRUE)
+train$bedrooms <- ifelse(is.na(train$bedrooms), mediana_bedrooms, train$bedrooms)
+
+#-------------------------------VARIABLES DE DISTANCIAS-----------------------------#
+#-----------------------------------------------------------------------------------#
+##-----------------------DISTANCIA INSTITUCIONES FINANCIERAS CASAS------------------#
+
 # Definir la ubicación de interés (en este caso, Bogotá, Colombia)
 ubicacion <- "Bogotá, Colombia"
 
 # Obtener los límites geográficos (BBOX) de la ubicación
 bbox_bogota <- getbb(ubicacion)
-
 bbox_bogota
 
-# Definir la ubicación de interés (en este caso, Bogotá, Colombia)
-parques <- opq(bbox = getbb("Bogotá, Colombia")) %>%
-  add_osm_feature(key = "leisure" , value = "park")
+bancos <- opq(bbox = bbox_bogota) %>%
+  add_osm_feature(key = "amenity", value = "bank")
 
-# Cambiar el formato para que sea un objeto sf (simple features)
-parques_sf <- osmdata_sf(parques)
-
-# De las features del parque, nos interesa su geometría y ubicación
-parques_geometria <- parques_sf$osm_polygons %>%
+bancos_sf <- osmdata_sf(bancos)
+bancos_geometria <- bancos_sf$osm_polygons %>%
   select(osm_id, name)
 
-# Calcular el centroide de cada parque para aproximar su ubicación como un solo punto
-centroides <- st_centroid(parques_geometria)
+centroides_bancos <- st_centroid(bancos_geometria)
 
 # Encontrar el centro del mapa
 latitud_central <- mean(bbox_bogota["lat"])
 longitud_central <- mean(bbox_bogota["lon"])
 
-# Crear el mapa de Bogotá con los parques
-leaflet() %>%
-  addTiles() %>%
-  setView(lng = longitud_central, lat = latitud_central, zoom = 12) %>%
-  addPolygons(data = parques_geometria, col = "red", weight = 10,
-              opacity = 0.8, popup = parques_geometria$name) %>%
-  addCircles(lng = st_coordinates(centroides)[, "X"],
-             lat = st_coordinates(centroides)[, "Y"],
-             col = "darkblue", opacity = 0.5, radius = 1)
-
-
-# Define los límites geográficos de Bogotá
-
-##############################################################
-# Definir los límites geográficos de Bogotá
-# Convertir los datos de train a un objeto sf y especificar el sistema de coordenadas
 train_sf <- st_as_sf(train, coords = c("lon", "lat"), crs = 4326)
-
-# Convertir los centroides de los parques a formato sf
-centroides_sf <- st_as_sf(centroides, coords = c("x", "y"), crs = 4326)
-
-# Calcular las distancias para cada combinación inmueble - parque
-distancias <- st_distance(train_sf, centroides_sf)
-
-# Encontrar la distancia mínima a un parque
-dist_min <- apply(distancias, 1, min)
-
-# Agregar la distancia mínima como una nueva columna en train_sf
-train_sf$distancia_parque <- dist_min
-
-# Visualizar el conjunto de datos train_sf
-head(train_sf)
-
-# Crear un mapa de leaflet
-m <- leaflet() %>%
-  addTiles() %>%
-  setView(lng = mean(train$lon), lat = mean(train$lat), zoom = 12) %>%
-  addCircles(lng = train$lon, lat = train$lat, radius = 100, color = "blue")
-
-# Mostrar el mapa
-m
+centroides_bancos_sf <- st_as_sf(centroides_bancos, coords = c("x", "y"), crs = 4326)
+distancias_bancos <- st_distance(train_sf, centroides_bancos_sf)
+dist_min_bancos <- apply(distancias_bancos, 1, min)
+train_sf$distancias_bancos <- dist_min_bancos
 
 
-# Write the modified data frame to Excel
-#write.xlsx(data_centros, file = Tabla_S)
+######-------------------------------CENTROS COMERCIALES---------------------------------######
 
 
-#########################################################################################3
-# Definir la ubicación de interés (en este caso, Bogotá, Colombia)
-ubicacion <- "Bogotá, Colombia"
-
-# Obtener los límites geográficos (BBOX) de la ubicación
-bbox_bogota <- getbb(ubicacion)
-
-# Definir la ubicación de interés (en este caso, Bogotá, Colombia) y buscar centros comerciales
+# Ubicación de interés (en este caso, Bogotá, Colombia) y buscar centros comerciales
 centros_comerciales <- opq(bbox = getbb("Bogotá, Colombia")) %>%
   add_osm_feature(key = "shop" , value = "mall")
-
-# Cambiar el formato para que sea un objeto sf (simple features)
 centros_comerciales_sf <- osmdata_sf(centros_comerciales)
 
 # De las features de centros comerciales, nos interesa su geometría y ubicación
 centros_comerciales_geometria <- centros_comerciales_sf$osm_points %>%
   select(osm_id, name)
-
-# Calcular el centroide de cada centro comercial para aproximar su ubicación como un solo punto
 centroides_centros_comerciales <- st_centroid(centros_comerciales_geometria)
-
-# Crear una nueva columna en train_sf que contenga la distancia mínima a un centro comercial
 distancias_centros_comerciales <- st_distance(train_sf, centroides_centros_comerciales)
 dist_min_centros_comerciales <- apply(distancias_centros_comerciales, 1, min)
 train_sf$distancia_centros_comerciales <- dist_min_centros_comerciales
 
-# Visualizar el conjunto de datos train_sf con la nueva variable
-head(train_sf)
 
-##-----------------------DISTANCIAS SUPERMERCADOS -----------------------------##
-
-# Definir la ubicación de interés (en este caso, Bogotá, Colombia)
-ubicacion <- "Bogotá, Colombia"
-
-# Obtener los límites geográficos (BBOX) de la ubicación
-bbox_bogota <- getbb(ubicacion)
+##-----------------------SUPERMERCADOS Y OTROS ESTABLECIMIENTOS -----------------------------##
 
 # Definir la ubicación de interés (en este caso, Bogotá, Colombia) y buscar supermercados
-supermercados <- opq(bbox = getbb("Bogotá, Colombia")) %>%
-  add_osm_feature(key = "shop", value = "supermarket")
+establecimientos <- opq(bbox = getbb("Bogotá, Colombia")) %>%
+  add_osm_feature(key = "shop", value = c("supermarket", "grocery", "convenience", "bakery", "corner shop"))
 
 # Cambiar el formato para que sea un objeto sf (simple features)
-supermercados_sf <- osmdata_sf(supermercados)
-
-# De las features de supermercados, nos interesa su geometría y ubicación
-supermercados_geometria <- supermercados_sf$osm_points %>%
+establecimientos_sf <- osmdata_sf(establecimientos)
+establecimientos_geometria <- establecimientos_sf$osm_points %>%
   select(osm_id, name)
-
-# Calcular el centroide de cada supermercado para aproximar su ubicación como un solo punto
-centroides_supermercados <- st_centroid(supermercados_geometria)
+centroides_establecimientos <- st_centroid(establecimientos_geometria)
 
 # Crear una nueva columna en train_sf que contenga la distancia mínima a un supermercado
-distancias_supermercados <- st_distance(train_sf, centroides_supermercados)
-dist_min_supermercados <- apply(distancias_supermercados, 1, min)
-train_sf$distancia_supermercados <- dist_min_supermercados
+distancias_establecimientos <- st_distance(train_sf, centroides_establecimientos)
+dist_min_establecimientos <- apply(distancias_establecimientos, 1, min)
+train_sf$distancia_establecimientos <- dist_min_establecimientos
 
-# Visualizar el conjunto de datos train_sf con la nueva variable
-head(train_sf)
 
-###--------------------TRANSMILENEO------------------------------------------------------##
-# Definir la ubicación de interés (en este caso, Bogotá, Colombia)
-ubicacion <- "Bogotá, Colombia"
-
-# Obtener los límites geográficos (BBOX) de la ubicación
-bbox_bogota <- getbb(ubicacion)
+###---------------------------------TRANSMILENEO--------------------------------------###
 
 # Definir la ubicación de interés (en este caso, Bogotá, Colombia) y buscar estaciones de TransMilenio
-transmilenio <- opq(bbox = getbb("Bogotá, Colombia")) %>%
+transmilenio_transporte <- opq(bbox = getbb("Bogotá, Colombia")) %>%
   add_osm_feature(key = "public_transport" , value = "station") %>%
   add_osm_feature(key = "network", value = "TransMilenio")
 
 # Cambiar el formato para que sea un objeto sf (simple features)
-transmilenio_sf <- osmdata_sf(transmilenio)
-
-# De las features de estaciones de TransMilenio, nos interesa su geometría y ubicación
-transmilenio_geometria <- transmilenio_sf$osm_points %>%
+transmilenio_transporte_sf <- osmdata_sf(transmilenio_transporte)
+transmilenio_transporte_geometria <- transmilenio_transporte_sf$osm_points %>%
   select(osm_id, name)
-
-# Calcular el centroide de cada estación de TransMilenio para aproximar su ubicación como un solo punto
-centroides_transmilenio <- st_centroid(transmilenio_geometria)
+centroides_transmilenio_transporte <- st_centroid(transmilenio_transporte_geometria)
 
 # Crear una nueva columna en train_sf que contenga la distancia mínima a una estación de TransMilenio
-distancias_transmilenio <- st_distance(train_sf, centroides_transmilenio)
-dist_min_transmilenio <- apply(distancias_transmilenio, 1, min)
-train_sf$distancia_transmilenio <- dist_min_transmilenio
+distancias_transmilenio_transporte <- st_distance(train_sf, centroides_transmilenio_transporte)
+dist_min_transmilenio_transporte <- apply(distancias_transmilenio_transporte, 1, min)
+train_sf$distancia_transmilenio_transporte <- dist_min_transmilenio_transporte
 
-# Visualizar el conjunto de datos train_sf con la nueva variable
-head(train_sf)
 
-##------------------------------UNIVERSIDADES-----------------------------------##
-# Definir la ubicación de interés (en este caso, Bogotá, Colombia)
-ubicacion <- "Bogotá, Colombia"
-
-# Obtener los límites geográficos (BBOX) de la ubicación
-bbox_bogota <- getbb(ubicacion)
+###------------------------------CENTROS EDUCATIVOS-----------------------------------###
 
 etiquetas_educativos <- c("school", "college", "university", "library", "kindergarten")
 
 # Definir la ubicación de interés (en este caso, Bogotá, Colombia) y buscar universidades
-universidades <- opq(bbox = getbb("Bogotá, Colombia")) %>%
+centros_educativos <- opq(bbox = getbb("Bogotá, Colombia")) %>%
   add_osm_feature(key = "amenity", value = etiquetas_educativos)
-
-# Cambiar el formato para que sea un objeto sf (simple features)
-universidades_sf <- osmdata_sf(universidades)
+centros_educativos_sf <- osmdata_sf(centros_educativos)
 
 # De las features de universidades, nos interesa su geometría y ubicación
-universidades_geometria <- universidades_sf$osm_points %>%
+centros_educativos_geometria <- centros_educativos_sf$osm_points %>%
   select(osm_id, name)
-
-# Calcular el centroide de cada universidad para aproximar su ubicación como un solo punto
-centroides_universidades <- st_centroid(universidades_geometria)
+centroides_centros_educativos <- st_centroid(centros_educativos_geometria)
 
 # Crear una nueva columna en train_sf que contenga la distancia mínima a una universidad
-distancias_universidades <- st_distance(train_sf, centroides_universidades)
-dist_min_universidades <- apply(distancias_universidades, 1, min)
-train_sf$distancia_universidades <- dist_min_universidades
-################## Aparte
+distancias_centros_educativos <- st_distance(train_sf, centroides_centros_educativos)
+dist_min_centros_educativos <- apply(distancias_centros_educativos, 1, min)
+train_sf$distancia_centros_educativos <- dist_min_centros_educativos
 
 # Transformar los datos a una proyección en metros (por ejemplo, UTM para Bogotá)
-train_sf <- st_transform(train_sf, crs = st_crs(centroides_universidades))
-
-# Luego, recalcular las distancias
-distancias_universidades <- st_distance(train_sf, centroides_universidades)
-dist_min_universidades <- apply(distancias_universidades, 1, min)
-train_sf$distancia_universidades <- dist_min_universidades
+train_sf <- st_transform(train_sf, crs = st_crs(centroides_centros_educativos))
+distancias_centros_educativos <- st_distance(train_sf, centroides_centros_educativos)
+dist_min_centros_educativos <- apply(distancias_centros_educativos, 1, min)
+train_sf$distancia_centros_educativos <- dist_min_centros_educativos
 
 
 ##---------------------- RESTAURANTES Y BARES -------------------------------##
-
-# Definir la ubicación de interés (Bogotá, Colombia)
-ubicacion <- "Bogotá, Colombia"
-
-# Obtener los límites geográficos (BBOX) de la ubicación
-bbox_bogota <- getbb(ubicacion)
 
 # Definir la búsqueda de restaurantes y bares en un solo grupo
 restaurantes_bares <- opq(bbox = getbb("Bogotá, Colombia")) %>%
@@ -627,47 +620,31 @@ restaurantes_bares <- opq(bbox = getbb("Bogotá, Colombia")) %>%
 
 # Cambiar el formato para que sea un objeto sf (simple features)
 restaurantes_bares_sf <- osmdata_sf(restaurantes_bares)
-
-# De las features de restaurantes y bares, nos interesa su geometría y ubicación
 restaurantes_bares_geometria <- restaurantes_bares_sf$osm_points %>%
   select(osm_id)
-
-# Calcular el centroide de cada restaurante y bar para aproximar su ubicación como un solo punto
 centroides_restaurantes_bares <- st_centroid(restaurantes_bares_geometria)
 
 # Crear nuevas columnas en train_sf que contengan la distancia mínima a un restaurante o bar
 distancias_restaurantes_bares <- st_distance(train_sf, centroides_restaurantes_bares)
-
 dist_min_restaurantes_bares <- apply(distancias_restaurantes_bares, 1, min)
-
 train_sf$distancia_restaurantes_bares <- dist_min_restaurantes_bares
 
+# Crear un mapa de leaflet
+m <- leaflet() %>%
+  addTiles() %>%
+  setView(lng = mean(train$lon), lat = mean(train$lat), zoom = 12) %>%
+  addCircles(lng = train$lon, lat = train$lat, radius = 100, color = "blue")
 
-# Agregar las variables de distancia a la base de datos 'train'
-train <- cbind(train, train_sf[c("distancia_parque", "distancia_transmilenio", "distancia_supermercados", "distancia_centros_comerciales", "distancia_universidades", "distancia_restaurantes_bares")])
-
-# Visualizar la base de datos 'train' con las nuevas columnas de distancia
-head(train)
-
-################################################################MODELOS#################################################
-train$bedrooms <- ifelse(train$bedrooms == 0, train$rooms, train$bedrooms)
-mediana_bedrooms <- median(train$bedrooms, na.rm = TRUE)
-train$bedrooms <- ifelse(is.na(train$bedrooms), mediana_bedrooms, train$bedrooms)
-
-# Crear una matriz de coordenadas a partir de lat y lon
 coordinates <- train %>% select(lon, lat)
-
-# Determinar el número de clusters (puedes ajustar este valor)
 num_clusters <- 18
-
-# Ejecutar el algoritmo K-Means espacial
 clusters <- kmeans(coordinates, centers = num_clusters)
-
-# Agregar los resultados del clustering a tu conjunto de datos original
 train$cluster <- as.factor(clusters$cluster)
 
-# Ver el resultado
-head(train)
+
+distancias1 <- train_sf %>% select(32:37) %>% st_drop_geometry()
+distanciasp <- train1_sf %>% select(24) %>% st_drop_geometry()
+train <- train %>% bind_cols(distancias1,distanciasp)
+
 
 ##########################################################################################################################
 
@@ -746,30 +723,44 @@ train$localidad[train$distancia_usme < umbral_grados_usme] <- "Usme"
 train$localidad[train$distancia_barrios_unidos < umbral_grados_barrios_unidos] <- "Barrios Unidos"
 train$localidad[train$distancia_san_cristobal < umbral_grados_san_cristobal] <- "San Cristobal"
 train$localidad[train$distancia_rafael_uribe < umbral_grados_rafael_uribe] <- "Rafael Uribe Uribe"
-train$localidad[train$distancia_los_martirez < umbral_grados_los_martirez] <- "Los Martirez"
+train$localidad[train$distancia_los_martirez < umbral_grados_los_martirez] <- "Los Mártires"
 train$localidad[train$distancia_tunjuelito < umbral_grados_tunjuelito] <- "Tunjuelito"
 train$localidad[train$distancia_puente_aranda < umbral_grados_puente_aranda] <- "Puente Aranda"
 
 # Elimina las columnas de distancia si ya no son necesarias
 train <- train %>% select(-distancia_santa_fe, -distancia_usaquen, -distancia_teusaquillo, -distancia_candelaria,-distancia_engativa,-distancia_suba,-distancia_bosa, -distancia_kennedy, -distancia_fontibon, -distancia_ciudad_bolivar,-distancia_antonio_narino, -distancia_usme,-distancia_barrios_unidos,-distancia_san_cristobal,-distancia_rafael_uribe, -distancia_los_martirez, -distancia_tunjuelito, -distancia_puente_aranda)
 
-# Ver el resultado
-library(ggplot2)
+train_porcentaje <- train %>%
+  group_by(localidad) %>%
+  summarise(cantidad = n()) %>%
+  mutate(porcentaje = cantidad / sum(cantidad) * 100)
 
-ggplot(train, aes(x = localidad)) +
-  geom_bar(fill = "blue") +
-  labs(title = "Distribución de Localidades") +
-  coord_flip()
+graph_loc <- ggplot(train_porcentaje, aes(x = localidad, y = cantidad)) +
+  geom_col(linewidth = 1.5, fill = "blue") +
+  geom_text(aes(label = paste0(round(porcentaje), "%")), 
+            position = position_stack(vjust = 1.1)) +
+  labs(title = "Grafica 1: Distribución de Propiedades por Localidad",
+       x = "Localidad",
+       y = "Cantidad") +
+  coord_flip() +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.line = element_line(color = "gray"),
+        panel.background = element_rect(fill = "transparent", color = NA),
+        panel.grid = element_line(color = "gray"))
+
+graph_loc
+
 
 
 distant <- data.frame(
   Dist_Centros_Comerciales = train$distancia_centros_comerciales,
-  Dist_Supermercados = train$distancia_supermercados,
-  Dist_Transmilenio = train$distancia_transmilenio,
-  Dist_Universidades = train$distancia_universidades,
-  Dist_Parque = train$distancia_parque,
-  Dist_Rests = train$distancia_restaurantes_bares
-)
+  Dist_Establecimientos = train$distancia_establecimientos,  
+  Dist_Transp_Publico = train$distancia_transmilenio_transporte,
+  Dist_Centros_Educ = train$distancia_centros_educativos,
+  Dist_Parques = train$distancias_parque,
+  Dist_Rests = train$distancia_restaurantes_bares,
+  Dist_Bancos = train$distancias_bancos)
+distant
 
 distant <- data.frame(localidad = train$localidad, distant) 
 
@@ -777,11 +768,12 @@ promedio_distancias <- distant %>%
   group_by(localidad) %>%
   summarize(
     Dist_Centros_Comerciales = mean(Dist_Centros_Comerciales, na.rm = TRUE),
-    Dist_Supermercados = mean(Dist_Supermercados, na.rm = TRUE),
-    Dist_Transmilenio = mean(Dist_Transmilenio, na.rm = TRUE),
-    Dist_Universidades = mean(Dist_Universidades, na.rm = TRUE),
-    Dist_Parques = mean(Dist_Parque, na.rm = TRUE),
-    Dist_Rests = mean(Dist_Rests, na.rm = TRUE)
+    Dist_Establecimientos = mean(Dist_Establecimientos, na.rm = TRUE),
+    Dist_Transp_Publico = mean(Dist_Transp_Publico, na.rm = TRUE),
+    Dist_Centros_Educ = mean(Dist_Centros_Educ, na.rm = TRUE),
+    Dist_Parques = mean(Dist_Parques, na.rm = TRUE),
+    Dist_Rests = mean(Dist_Rests, na.rm = TRUE),
+    Dist_Bancos = mean(Dist_Bancos, na.rm = TRUE)
   ) %>%
   ungroup() 
 
@@ -844,11 +836,6 @@ graf_deptos
 # Combinar los gráficos en una sola figura
 grid.arrange(graf_casas, graf_deptos, ncol = 2)
 
-# Establece la ubicación y el nombre del archivo de salida
-#Tabla_train1 <- "C:/Output R/Taller 2/Taller_2/Tabla_1.xlsx"  
-#write_xlsx(train, Tabla_train1)
-
-
 
 # ------------------- Crear la tabla de frecuencias para casas ------------------------------------#
 
@@ -856,6 +843,10 @@ Mode <- function(x) {
   uniq_x <- unique(x)
   uniq_x[which.max(tabulate(match(x, uniq_x)))] 
 }
+
+mediana_area <- median(train$nueva_surface, na.rm = TRUE)
+train$nueva_surface <- ifelse(is.na(train$nueva_surface), mediana_area, train$nueva_surface)
+
 
 Precio_Casas <- train %>%
   filter(property_type == "Casa") %>%
@@ -874,6 +865,12 @@ Rango_precios_casas <- Precio_Casas %>%
             Observaciones = n(),
             Part_Porc = (Observaciones / 9071 * 100))
 colnames(Rango_precios_casas) <- c("Rango de Precios", "Estrato","Habitaciones","Baños", "Area", "Observaciones","Part. %" )
+Rango_precios_casas
+
+Tabla_Rangos <- as.data.frame(Rango_precios_casas)
+Tabla_R_ <- "C:/Output R/Taller 2/Taller_2/document/Tabla_R.xlsx"
+write_xlsx(Tabla_Rangos, path = Tabla_R_)
+
 
 
 # Crear la tabla de frecuencias para apartamentos
@@ -895,29 +892,36 @@ Rango_precios_Apart <- Precio_Aparts  %>%
             Part_Porc = (Observaciones / 28093 * 100))
 colnames(Rango_precios_Apart) <- c("Rango de Precios", "Estrato","Habitaciones","Baños", "Area", "Observaciones","Part. %" )
 
+#Tabla_Rangos_a <- as.data.frame(Rango_precios_Apart)
+#Tabla_Ra_ <- "C:/Output R/Taller 2/Taller_2/document/Tabla_Ra.xlsx"
+#write_xlsx(Tabla_Rangos_a, path = Tabla_Ra_)
 
 # ---------------------Rango de Precios y Distancias-----------------------------------------------------------------------
 
 # Tabla de frecuencias con la moda del estrato para casas
 Precios_Distancias_C <- Precio_Casas %>%
   group_by(Precios_Casas) %>%
-  summarise(Parques = round(mean(distancia_parque)),
+  summarise(Parques = round(mean(distancias_parque)),
             CComer = round(mean(distancia_centros_comerciales)),
-            Universidades = round(mean(distancia_universidades)),
-            Transmilenio = round(mean(distancia_transmilenio)),
-            Restaurantes = round(mean(distancia_restaurantes_bares)))
-colnames(Precios_Distancias_C) <- c("Rango de Precios","Distancia Parques", "Distancia Centros Comerciales","Distancia Universidades","Distancia Transmilenio","Distancia Restaurantes")
+            Centros_Educ = round(mean(distancia_centros_educativos)),
+            Tranp_Publico = round(mean(distancia_transmilenio_transporte)),
+            Restaurantes = round(mean(distancia_restaurantes_bares)),
+            Establecimientos = round(mean(distancia_establecimientos)),
+            Bancos = round(mean(distancias_bancos)))
+colnames(Precios_Distancias_C) <- c("Rango de Precios","Distancia Parques", "Distancia Centros Comerciales","Distancia Centros Educativos","Distancia Transp. Publico","Distancia Restaurantes","Distancia Establecimientos","Distancia Bancos")
 
 
 # Tabla de frecuencias con la moda del estrato para casas
 Precios_Distancias_D <- Precio_Aparts %>%
   group_by(Precios_Apart) %>%
-  summarise(Parques = round(mean(distancia_parque)),
+  summarise(Parques = round(mean(distancias_parque)),
             CComer = round(mean(distancia_centros_comerciales)),
-            Universidades = round(mean(distancia_universidades)),
-            Transmilenio = round(mean(distancia_transmilenio)),
-            Restautantes = round(mean(distancias_restaurantes_bares)))
-colnames(Precios_Distancias_D) <- c("Rango de Precios","Distancia Parques", "Distancia Centros Comerciales","Distancia Universidades","Distancia Transmilenio","Distancia Restaurantes")
+            Centros_Educ = round(mean(distancia_centros_educativos)),
+            Transp_Publico = round(mean(distancia_transmilenio_transporte)),
+            Restaurantes = round(mean(distancias_restaurantes_bares)),
+            Establecimientos = round(mean(distancia_establecimientos)),
+            Bancos = round(mean(distancias_bancos)))
+colnames(Precios_Distancias_D) <- c("Rango de Precios","Distancia Parques", "Distancia Centros Comerciales","Distancia Centros Educativos","Distancia Transp. Publico","Distancia Restaurantes","Distancia Establecimientos","Distancia Bancos")
 
 
 # ---------------------Precios promedios por Localidad-----------------------------------------------------------------------
@@ -1021,29 +1025,34 @@ train <- train %>% rename(lPrecio=lprice)
 train <- train %>% rename(Precio_M2=precio_por_mt2) 
 train <- train %>% rename(Habitaciones=bedrooms)
 train <- train %>% rename(Baños=bathrooms) 
-train <- train %>% rename(Area=nueva_surface)
-train <- train %>% rename(M2_por_Habitación=metros_cuadrados_por_bedrooms)
+train <- train %>% rename(Area=surface_total)
+train <- train %>% rename(M2_por_Habitación=metros_cuadrados_bedrooms)
 train <- train %>% rename(Terraza=tiene_terraza) 
 train <- train %>% rename(Sala_BBQ=tiene_bbq) 
 train <- train %>% rename(Garaje=total_parqueo) 
-train <- train %>% rename(Dist_Parques=distancia_parque) 
-train <- train %>% rename(Dist_Transmilenio=distancia_transmilenio) 
-train <- train %>% rename(Dist_Supermercados=distancia_supermercados)
+train <- train %>% rename(Dist_Parques=distancias_parque) 
+train <- train %>% rename(Dist_Transp_Publico=distancia_transmilenio_transporte) 
+train <- train %>% rename(Dist_Establecimientos=distancia_establecimientos)
 train <- train %>% rename(Dist_C_Comerc=distancia_centros_comerciales) 
-train <- train %>% rename(Dist_Universidades=distancia_universidades)
-train <- train %>% rename(Dist_Restaurantes=distancia_restaurantes_bares) 
+train <- train %>% rename(Dist_Centros_Educ=distancia_centros_educativos)
+train <- train %>% rename(Dist_Restaurantes=distancia_restaurantes_bares)
+train <- train %>% rename(Dist_Bancos=distancias_bancos)
 train <- train %>% rename(Estrato=estrato) 
+
+mediana_area <- median(train$Area, na.rm = TRUE)
+train$Area <- ifelse(is.na(train$Area), mediana_area, train$Area)
+
 
 ##-----------------------------CASAS----------------------------------------
 
 train_casas <- train[train$property_type == "Casa", c("property_id","title", "month", "year", "localidad","Estrato", "Precio", "lPrecio", 
                                                       "Precio_M2", "Habitaciones", "Baños", "Area","M2_por_Habitación", "lat", "lon", "Terraza", 
                                                       "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
-                                                      "Dist_Parques", "Dist_Transmilenio", "Dist_Supermercados", 
-                                                      "Dist_C_Comerc", "Dist_Universidades", "Dist_Restaurantes")]
+                                                      "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", 
+                                                      "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes","Dist_Bancos")]
 
-#Tabla_train_casas <- "C:/Output R/Taller 2/Taller_2/Tabla_c.xlsx"  
-#write_xlsx(train_casas, Tabla_train_casas)
+Tabla_train_casas <- "C:/Output R/Taller 2/Taller_2/Tabla_train_casas.xlsx"  
+write_xlsx(train_casas, Tabla_train_casas)
 
 # Imputar los Valores para los Baños
 data_b_b <- train_casas[complete.cases(train_casas[c("Habitaciones", "Baños")]), ]
@@ -1066,11 +1075,12 @@ Tabla_Stat <- train_casas  %>% select(Precio,
                                       Area,
                                       M2_por_Habitación,
                                       Dist_Parques,
-                                      Dist_Transmilenio,
-                                      Dist_Supermercados,
+                                      Dist_Transp_Publico,
+                                      Dist_Establecimientos,
                                       Dist_C_Comerc,
-                                      Dist_Universidades,
+                                      Dist_Centros_Educ,
                                       Dist_Restaurantes,
+                                      Dist_Bancos,
                                       Estrato)
 
 stargazer(data.frame(Tabla_Stat), header=FALSE, type='text',title="Estadisticas Variables Seleccionadas Casas")
@@ -1080,9 +1090,12 @@ stargazer(data.frame(Tabla_Stat), header=FALSE, type='text',title="Estadisticas 
 train_apart <- train[train$property_type == "Apartamento", c("property_id","title", "month", "year", "localidad","Estrato", "Precio", "lPrecio", 
                                                              "Precio_M2", "Habitaciones", "Baños", "Area","M2_por_Habitación", "lat", "lon", "Terraza", 
                                                              "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
-                                                             "Dist_Parques", "Dist_Transmilenio", "Dist_Supermercados", 
-                                                             "Dist_C_Comerc", "Dist_Universidades", "Dist_Restaurantes")]
+                                                             "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", 
+                                                             "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes","Dist_Bancos")]
 
+
+Tabla_train_apart <- "C:/Output R/Taller 2/Taller_2/Tabla_train_apart.xlsx"  
+write_xlsx(train_apart, Tabla_train_apart)
 
 # Imputar los Valores para los Baños
 data1_b_b <- train_apart[complete.cases(train_apart[c("Habitaciones", "Baños")]), ]
@@ -1099,17 +1112,18 @@ Tabla_Stat_D <- train_apart  %>% select(Precio,
                                         Area,
                                         M2_por_Habitación,
                                         Dist_Parques,
-                                        Dist_Transmilenio,
-                                        Dist_Supermercados,
+                                        Dist_Transp_Publico,
+                                        Dist_Establecimientos,
                                         Dist_C_Comerc,
-                                        Dist_Universidades,
+                                        Dist_Centros_Educ,
                                         Dist_Restaurantes,
+                                        Dist_Bancos,
                                         Estrato)
 
 stargazer(data.frame(Tabla_Stat_D), header=FALSE, type='text',title="Estadisticas Variables Seleccionadas Apartamentos")
 
-Tabla_train <- "C:/Output R/Taller 2/Taller_2/Tabla_1.xlsx"  
-write_xlsx(train, Tabla_train)
+#Tabla_train <- "C:/Output R/Taller 2/Taller_2/Tabla_1.xlsx"  
+#write_xlsx(train, Tabla_train)
 
 ##############################################################################################################
 #--------------------------------------------- CHAPINERO-----------------------------------------------------#
@@ -1119,8 +1133,6 @@ test %>%
   summarise_all(~sum(is.na(.))) %>% transpose()
 
 test$surface_total[is.na(test$surface_total)] <- test$surface_covered[is.na(test$surface_total)]
-test %>%
-  summarise_all(~sum(is.na(.))) %>% transpose()
 
 #Encontremos la moda de número de habitaciones 3, cuartos y número de baños
 test$bedrooms <- ifelse(test$bedrooms == 0, test$rooms, test$bedrooms)                                                    
@@ -1206,8 +1218,8 @@ mediana_bedrooms <- median(test$bedrooms, na.rm = TRUE)
 test$bedrooms <- ifelse(is.na(test$bedrooms), mediana_bedrooms, test$bedrooms)
 
 test <- test %>%
-  mutate(metros_cuadrados_por_bedrooms = metros_cuadrados / bedrooms)
-summary(test$metros_cuadrados_por_bedrooms)
+  mutate(metros_cuadrados_bedrooms = nueva_surface / bedrooms)
+summary(test$metros_cuadrados_bedrooms)
 
 
 # --Segun los datos finales de Train la media de m^2 por habitación es 45.81
@@ -1353,7 +1365,7 @@ leaflet() %>%
   addCircles(lng = test$lon, lat = test$lat)
 
 # Crear una variable binaria "tiene_terrazz" basada en la descripción
-test$tiene_terraza <- as.numeric(grepl("terraza", test$description, ignore.case = TRUE))
+test$tiene_terraza <- as.numeric(grepl("terraza|azotea", test$description, ignore.case = TRUE))
 table(test$tiene_terraza)
 # Mostrar las primeras filas del dataframe con la nueva variable
 head(train)
@@ -1373,7 +1385,7 @@ casas_con_piscina1
 
 ## ---------------------------------Crear Gimnasio---------------------------------##
 
-test$Gimnasio <- as.numeric(grepl("gimnasio", test$description, ignore.case = TRUE))
+test$Gimnasio <- as.numeric(grepl("gimnasio|gym", test$description, ignore.case = TRUE))
 
 # Mostrar las primeras filas del dataframe con la nueva variable
 head(test)
@@ -1417,9 +1429,6 @@ test_filtrado_bogota <- test %>%
       between(lat, limites_bogota[2, "min"], limites_bogota[2, "max"])
   )
 
-# Luego creamos una variable de color que debende del tipo de immueble.
-
-
 # Crear una nueva columna "color" basada en el tipo de propiedad
 test <- test %>%
   mutate(color = case_when(property_type == "Apartamento" ~ "#2A9D8F",
@@ -1438,11 +1447,6 @@ html <- paste0("<br> <b>Area:</b> ",
                as.integer(test$rooms),
                "<br> <b>Numero de baños:</b> ",
                as.integer(test$bathrooms))
-
-# Crear la variable Parques
-# Cargar las bibliotecas necesarias
-library(osmdata)
-library(sf)
 
 ##---------------------------- DISTANCIA PARQUES  ----------------------------###
 ##----------------------------------------------------------------------------###
@@ -1474,67 +1478,45 @@ test_sf$distancia_parque <- dist_min
 ##---------------------------- CENTROS COMERCIALES----------------------------###
 ##----------------------------------------------------------------------------###
 
-# Definir la ubicación de interés (Chapinero, Bogotá, Colombia)
-#ubicacion <- "Chapinero, Bogotá, Colombia"
-
-# Obtener los límites geográficos (BBOX) de la ubicación de Chapinero
-#bbox_chapinero <- getbb(ubicacion)
-
 # Definir la búsqueda de centros comerciales en Chapinero
 centros_comerciales_chapinero <- opq(bbox = bbox_chapinero) %>%
   add_osm_feature(key = "shop", value = "mall")
 
 # Cambiar el formato para que sea un objeto sf (simple features)
 centros_comerciales_chapinero_sf <- osmdata_sf(centros_comerciales_chapinero)
-
-# De las features de centros comerciales, nos interesa su geometría y ubicación
 centros_comerciales_geometria <- centros_comerciales_chapinero_sf$osm_points %>%
   select(osm_id, name)
-
-# Calcular el centroide de cada centro comercial para aproximar su ubicación como un solo punto
 centroides_centros_comerciales <- st_centroid(centros_comerciales_geometria)
-
-# Convertir los datos de 'test' a un objeto sf y especificar el sistema de coordenadas
-#test_sf <- st_as_sf(test, coords = c("lon", "lat"), crs = 4326)
 
 # Calcular las distancias para cada combinación inmueble - centro comercial
 distancias_centros_comerciales <- st_distance(test_sf, centroides_centros_comerciales)
 dist_min_centros_comerciales <- apply(distancias_centros_comerciales, 1, min)
 test_sf$distancia_centros_comerciales <- dist_min_centros_comerciales
 
-# Mantener las distancias a parques y centros comerciales en 'test_sf'
 test_sf$distancia_parque <- dist_min
 test_sf$distancia_centros_comerciales <- dist_min_centros_comerciales
 
-###-----------------------------SUPERMERCADOS-------------------------------###
+###------------------SUPERMERCADOS Y OTROS ESTABLECIMIENTOS------------------###
 ##--------------------------------------------------------------------------###
 
 
 ## Definir la búsqueda de supermercados en Chapinero
-supermercados_chapinero <- opq(bbox = bbox_chapinero) %>%
-  add_osm_feature(key = "shop", value = "supermarket")
-
-# Cambiar el formato para que sea un objeto sf (simple features)
-supermercados_chapinero_sf <- osmdata_sf(supermercados_chapinero)
+establecimientos_chapinero <- opq(bbox = bbox_chapinero) %>%
+  add_osm_feature(key = "shop", value = c("supermarket", "grocery", "convenience", "bakery", "corner shop"))
+ establecimientos_chapinero_sf <- osmdata_sf(establecimientos_chapinero)
 
 # De las features de supermercados, nos interesa su geometría y ubicación
-supermercados_geometria <- supermercados_chapinero_sf$osm_points %>%
+establecimientos_geometria <-  establecimientos_chapinero_sf$osm_points %>%
   select(osm_id, name)
-
-# Calcular el centroide de cada supermercado para aproximar su ubicación como un solo punto
-centroides_supermercados <- st_centroid(supermercados_geometria)
+centroides_establecimientos <- st_centroid( establecimientos_geometria)
 
 # Calcular las distancias para cada combinación inmueble - supermercado
-distancias_supermercados <- st_distance(test_sf, centroides_supermercados)
-
-# Encontrar la distancia mínima a un supermercado
-dist_min_supermercados <- apply(distancias_supermercados, 1, min)
-
-# Agregar la distancia mínima como una nueva columna en 'test_sf'
-test_sf$distancia_supermercados <- dist_min_supermercados
+distancias_establecimientos <- st_distance(test_sf, centroides_establecimientos)
+dist_min_establecimientos <- apply(distancias_establecimientos, 1, min)
+test_sf$distancia_establecimientos <- dist_min_establecimientos
 
 
-###--------------------------------TRANSMILENIO-------------------------------------------###
+###-------------------------TRANSMILENIO Y TRANSPORTE PUBLICO-----------------------------###
 ##----------------------------------------------------------------------------------------###
 
 # Definir la ubicación de interés (Chapinero, Bogotá, Colombia)
@@ -1544,97 +1526,97 @@ ubicacion <- "Chapinero, Bogotá, Colombia"
 bbox_chapinero <- getbb(ubicacion)
 
 # Definir la búsqueda de estaciones de TransMilenio en Chapinero
-transmilenio_chapinero <- opq(bbox = bbox_chapinero) %>%
+transmilenio_transporte_chapinero <- opq(bbox = bbox_chapinero) %>%
   add_osm_feature(key = "network", value = "TransMilenio")
 
-# Cambiar el formato para que sea un objeto sf (simple features)
-transmilenio_chapinero_sf <- osmdata_sf(transmilenio_chapinero)
-
-# De las features de estaciones de TransMilenio, nos interesa su geometría y ubicación
-transmilenio_geometria <- transmilenio_chapinero_sf$osm_points %>%
+transmilenio_transporte_chapinero_sf <- osmdata_sf(transmilenio_transporte_chapinero)
+transmilenio_transporte_geometria <- transmilenio_transporte_chapinero_sf$osm_points %>%
   select(osm_id, geometry)
 
 # Calcular el centroide de cada estación de TransMilenio para aproximar su ubicación como un solo punto
-centroides_transmilenio <- st_centroid(transmilenio_chapinero_sf$osm_points)
-
-# Calcular las distancias para cada combinación inmueble - estación de TransMilenio
-distancias_transmilenio <- st_distance(test_sf, centroides_transmilenio)
+centroides_transmilenio_transporte <- st_centroid(transmilenio_transporte_chapinero_sf$osm_points)
+distancias_transmilenio_transporte <- st_distance(test_sf, centroides_transmilenio_transporte)
 
 # Encontrar la distancia mínima a una estación de TransMilenio
-dist_min_transmilenio <- apply(distancias_transmilenio, 1, min)
-
-# Agregar la distancia mínima como una nueva columna en 'test_sf'
-test_sf$distancia_transmilenio <- dist_min_transmilenio
+dist_min_transmilenio_transporte <- apply(distancias_transmilenio_transporte, 1, min)
+test_sf$distancia_transmilenio_transporte <- dist_min_transmilenio_transporte
 head(test_sf)
 
-###-----------DISTANCIA UNIVERSIDADES EN CHAPINERO--------------------------------------###
+###----------------------CENTROS EDUCATIVOS EN CHAPINERO-------------------------- ###
 ##--------------------------------------------------------------------------------------###
 
 etiquetas_educativos <- c("school", "college", "university", "library", "kindergarten")
 
 # Definir la ubicación de interés (en este caso, Bogotá, Colombia) y buscar universidades
-universidades_chapinero <- opq(bbox = getbb("Bogotá, Colombia")) %>%
+centros_educativos_chapinero <- opq(bbox = getbb("Bogotá, Colombia")) %>%
   add_osm_feature(key = "amenity", value = etiquetas_educativos)
 
 # Cambiar el formato para que sea un objeto sf (simple features)
-universidades_chapinero_sf <- osmdata_sf(universidades_chapinero)
-
-# De las features de universidades, nos interesa su geometría y ubicación
-universidades_geometria <- universidades_chapinero_sf$osm_points %>%
+centros_educativos_chapinero_sf <- osmdata_sf(centros_educativos_chapinero)
+centros_educativos_geometria <- centros_educativos_chapinero_sf$osm_points %>%
   select(osm_id, name)
 
 # Calcular el centroide de cada universidad para aproximar su ubicación como un solo punto
-centroides_universidades <- st_centroid(universidades_geometria)
-
-# Calcular las distancias para cada combinación inmueble - universidad
-distancias_universidades <- st_distance(test_sf, centroides_universidades)
-
-# Encontrar la distancia mínima a una universidad
-dist_min_universidades <- apply(distancias_universidades, 1, min)
+centroides_centros_educativos <- st_centroid(centros_educativos_geometria)
+distancias_centros_educativos <- st_distance(test_sf, centroides_centros_educativos)
+dist_min_centros_educativos <- apply(distancias_centros_educativos, 1, min)
 
 # Agregar la distancia mínima como una nueva columna en 'test_sf'
-test_sf$distancia_universidades <- dist_min_universidades
-
-# Visualizar el conjunto de datos 'test_sf' con las nuevas variables
+test_sf$distancia_centros_educativos <- dist_min_centros_educativos
 head(test_sf)
 
 ###-----------------DISTANCIA RESTAURANTES EN CHAPINERO ----------------------###
 ###---------------------------------------------------------------------------###
 
-# Definir la ubicación de interés (Chapinero, Bogotá, Colombia)
-ubicacion_chapinero <- "Chapinero, Bogotá, Colombia"
-
-# Obtener los límites geográficos (BBOX) de la ubicación en Chapinero
-bbox_chapinero <- getbb(ubicacion_chapinero)
 
 # Definir la búsqueda de restaurantes y bares en un solo grupo en Chapinero
 restaurantes_bares <- opq(bbox = bbox_chapinero) %>%
   add_osm_feature(key = "amenity", value = c("restaurant", "bar"))
-
-# Cambiar el formato para que sea un objeto sf (simple features)
 restaurantes_bares_sf <- osmdata_sf(restaurantes_bares)
 
 # De las features de restaurantes y bares en Chapinero, nos interesa su geometría y ubicación
 restaurantes_bares_geometria <- restaurantes_bares_sf$osm_points %>%
   select(osm_id)
-
-# Calcular el centroide de cada restaurante y bar en Chapinero para aproximar su ubicación como un solo punto
 centroides_restaurantes_bares <- st_centroid(restaurantes_bares_geometria)
-
-# Calcular las distancias para cada combinación inmueble - restaurante/bar en Chapinero
 distancias_restaurantes_bares <- st_distance(test_sf, centroides_restaurantes_bares)
 
 # Encontrar la distancia mínima a un restaurante o bar en Chapinero
 dist_min_restaurantes_bares <- apply(distancias_restaurantes_bares, 1, min)
-
-# Agregar la distancia mínima como una nueva columna en 'test_sf'
 test_sf$distancia_restaurantes_bares <- dist_min_restaurantes_bares
-
-# Visualizar el conjunto de datos 'test_sf' con la nueva variable
 head(test_sf)
 
+##-----------------------DISTANCIA INSTITUCIONES FINANCIERAS----------------------------------##
 
-test<- cbind(test, test_sf[c("distancia_parque","distancia_transmilenio","distancia_supermercados","distancia_universidades", "distancia_centros_comerciales","distancia_restaurantes_bares")])
+# Definir la ubicación de interés (Chapinero, Bogotá, Colombia)
+ubicacion <- "Chapinero, Bogotá, Colombia"
+
+# Obtener los límites geográficos (BBOX) de la ubicación
+bbox_chapinero <- getbb(ubicacion)
+
+# Definir la ubicación de interés y buscar instituciones financieras
+bancos <- opq(bbox = bbox_chapinero) %>%
+  add_osm_feature(key = "amenity", value = "bank")
+
+bancos_sf <- osmdata_sf(bancos)
+bancos_geometria <- bancos_sf$osm_polygons %>%
+  select(osm_id, name)
+
+centroides_bancos <- st_centroid(bancos_geometria)
+
+# Encontrar el centro del mapa
+latitud_central <- mean(bbox_bogota["lat"])
+longitud_central <- mean(bbox_bogota["lon"])
+
+test1_sf <- st_as_sf(test, coords = c("lon", "lat"), crs = 4326)
+centroides_bancos_sf <- st_as_sf(centroides_bancos, coords = c("x", "y"), crs = 4326)
+distancias_bancos <- st_distance(test1_sf, centroides_bancos_sf)
+dist_min_bancos <- apply(distancias_bancos, 1, min)
+test1_sf$distancias_bancos <- dist_min_bancos
+
+distanc1 <- test_sf %>% select(30:35) %>% st_drop_geometry()
+distancp <- test1_sf %>% select(30) %>% st_drop_geometry()
+test <- test %>% bind_cols(distanc1,distancp)
+
 
 # Imputar los Valores para los Baños
 test_b_b <- test[complete.cases(test[c("bedrooms", "bathrooms")]), ]
@@ -1644,9 +1626,7 @@ test$bathrooms <- round(test$bathrooms)
 
 test <- data.frame(localidad = "Chapinero", test)
 test$Estrato <- "4"
-
-#Tabla_test <- "C:/Output R/Taller 2/Taller_2/Tabla_2.xlsx"  
-#write_xlsx(test, Tabla_test)
+test$Estrato <- as.numeric(test$Estrato)
 
 
 # Renombrar las variables para una mayor comprensión de las variables que estamos trabajando
@@ -1654,16 +1634,17 @@ test <- test %>% rename(Precio=price)
 test <- test %>% rename(Habitaciones=bedrooms)
 test <- test %>% rename(Baños=bathrooms) 
 test <- test %>% rename(Area=nueva_surface)
-test <- test %>% rename(M2_por_Habitación=metros_cuadrados_por_bedrooms)
+test <- test %>% rename(M2_por_Habitacion=metros_cuadrados_por_bedrooms)
 test <- test %>% rename(Terraza=tiene_terraza) 
 test <- test %>% rename(Sala_BBQ=tiene_bbq) 
 test <- test %>% rename(Garaje=total_parqueo) 
 test <- test %>% rename(Dist_Parques=distancia_parque) 
-test <- test %>% rename(Dist_Transmilenio=distancia_transmilenio) 
-test <- test %>% rename(Dist_Supermercados=distancia_supermercados)
+test <- test %>% rename(Dist_Transp_Publico=distancia_transmilenio_transporte) 
+test <- test %>% rename(Dist_Establecimientos=distancia_establecimientos)
 test <- test %>% rename(Dist_C_Comerc=distancia_centros_comerciales) 
-test <- test %>% rename(Dist_Universidades=distancia_universidades)
+test <- test %>% rename(Dist_Centros_Educ=distancia_centros_educativos)
 test <- test %>% rename(Dist_Restaurantes=distancia_restaurantes_bares) 
+test <- test %>% rename(Dist_Bancos=distancias_bancos) 
 
 test <- test %>%
   mutate(M2_por_Habitación = round(Area / Habitaciones))
@@ -1675,43 +1656,1301 @@ test$lPrecio <- NA
 
 ##-----------------------------CASAS----------------------------------------
 
-test_casas <- test[train$property_type == "Casa", c("property_id","title", "month", "year", "localidad","Estrato", "Precio", "lPrecio", 
-                                                      "Precio_M2", "Habitaciones", "Baños", "Area","M2_por_Habitación", "lat", "lon", "Terraza", 
+test_casas <- test[test$property_type == "Casa", c("property_id","title", "month", "year", "localidad","Estrato", "Precio", "lPrecio", 
+                                                      "Precio_M2", "Habitaciones", "Baños", "Area","M2_por_Habitacion", "lat", "lon", "Terraza", 
                                                       "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
-                                                      "Dist_Parques", "Dist_Transmilenio", "Dist_Supermercados", 
-                                                      "Dist_C_Comerc", "Dist_Universidades", "Dist_Restaurantes")]
+                                                      "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", 
+                                                      "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")]
 
+Tabla_test_casas <- "C:/Output R/Taller 2/Taller_2/Tabla_test_casas.xlsx"  
+write_xlsx(test_casas, Tabla_test_casas)
 
 ##---------------------------------------Apartamentos ----------------------------------------##
 
-test_apart <- test[train$property_type == "Apartamento", c("property_id","title", "month", "year", "localidad","Estrato", "Precio", "lPrecio", 
-                                                             "Precio_M2", "Habitaciones", "Baños", "Area","M2_por_Habitación", "lat", "lon", "Terraza", 
-                                                             "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
-                                                             "Dist_Parques", "Dist_Transmilenio", "Dist_Supermercados", 
-                                                             "Dist_C_Comerc", "Dist_Universidades", "Dist_Restaurantes")]
+test_apart <- test[test$property_type == "Apartamento", c("property_id","title", "month", "year", "localidad","Estrato", "Precio", "lPrecio", 
+                                                           "Precio_M2", "Habitaciones", "Baños", "Area","M2_por_Habitacion", "lat", "lon", "Terraza", 
+                                                           "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
+                                                           "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", 
+                                                           "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")]
 
 
+Tabla_test_apart <- "C:/Output R/Taller 2/Taller_2/Tabla_test_apart.xlsx"  
+write_xlsx(test_apart, Tabla_test_apart)
 
-##---------------------------Elaboración de Modelos para pronosticar el Precio de las Casas------------------##
+##-----------Elaboración de Modelos para pronosticar el Precio de las Casas y Apartamentos-------------------##
 ##-----------------------------------------------------------------------------------------------------------##
 
 #----------------------------------------------- REGRESION LINEAL---------------------------------------------
 
-train_casas$lPrecio_M2 = log(train_casas$Precio_M2)
-train_casas$Habitaciones2 = (train_casas$Habitaciones)^2
-train_casas$Terraza_piscina = train_casas$Terraza * train_casas$Piscina
-train_casas$Gimnasio_seguridad = train_casas$Gimnasio * train_casas$Seguridad
-train_casas$Sala_BBQ_terraza = train_casas$Sala_BBQ * train_casas$Terraza
-train_casas$Area_Garaje = train_casas$Area * train_casas$Garaje
+library(readxl)
 
-Model1 <- lm(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + Area + Terraza + Area_Garaje + Garaje + Sala_BBQ + Gimnasio + Sala_BBQ_terraza + Chimenea + Seguridad + Dist_Parques + 
-               Dist_Transmilenio + Dist_Supermercados + Dist_C_Comerc + Dist_Universidades + Dist_Restaurantes, data = train_casas)
+# Cargar las librerías listadas e instalarlas en caso de ser necesario
+p_load(tidyverse, # Manipular dataframes
+       rio, # Import data easily
+       plotly, # Gráficos 
+       leaflet, # Mapas interactivos
+       rgeos, # Calcular centroides de un poligono
+       tmaptools, # geocode_OSM()
+       sf, # Leer/escribir/manipular datos espaciales
+       osmdata, # Get OSM's data 
+       tidymodels,
+       dplyr) #para modelos de ML
+
+
+# Define the URL of the Excel file
+excel_urls <- c(
+  "https://github.com/chernan77/Data_Taller2/raw/main/Tabla_train_casas.xlsx",
+  "https://github.com/chernan77/Data_Taller2/raw/main/Tabla_train_apart.xlsx",
+  "https://github.com/chernan77/Data_Taller2/raw/main/Tabla_test_casas.xlsx",
+  "https://github.com/chernan77/Data_Taller2/raw/main/Tabla_test_apart.xlsx"
+)
+
+# Create empty data frames to store the data from each Excel file
+train_casas1 <- data.frame()
+train_apart1 <- data.frame()
+test_casas1 <- data.frame()
+test_apart1 <- data.frame()
+
+# Download and read each Excel file
+for (url in excel_urls) {
+  temp_file <- tempfile(fileext = ".xlsx")
+  download.file(url, temp_file, mode = "wb")
+  
+  if (grepl("Tabla_train_casas", url)) {
+    train_casas1 <- read_excel(temp_file)
+  } else if (grepl("Tabla_train_apart", url)) {
+    train_apart1 <- read_excel(temp_file)
+  } else if (grepl("Tabla_test_casas", url)) {
+    test_casas1 <- read_excel(temp_file)
+  } else if (grepl("Tabla_test_apart", url)) {
+    test_apart1 <- read_excel(temp_file)
+  }
+  
+  # Clean up by removing the temporary file
+  file.remove(temp_file)
+}
+
+# -------------------------------CREACION DE OTRAS VARIABLES-------------------------- # 
+train_casas1$M2_por_Habitacion<- train_casas1$Area/train_casas1$Habitaciones
+train_casas1$Habitaciones2 <- train_casas1$Habitaciones^2
+train_casas1$M2_por_Habitacion_Garaje <- train_casas1$M2_por_Habitacion * train_casas1$Garaje
+train_casas1$Sala_BBQ_terraza <- train_casas1$Sala_BBQ * train_casas1$Terraza
+train_casas1$year <- as.character(train_casas1$year)
+train_casas1$month <- as.character(train_casas1$month)
+train_casas1$Fecha <- as.Date(paste0(train_casas1$year, "-", train_casas1$month, "-01"))
+train_casas1$Fecha <- as.Date(train_casas1$Fecha)
+train_casas1$Latitud <- train_casas1$lat
+train_casas1$Longitud <- train_casas1$lon
+train_casas1$Año <- as.numeric(train_casas1$year)
+
+# -------------------------------MODELOS DE REGRESION LINEAL CASAS--------------------------------# 
+
+Model1 <- lm(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + Latitud + Longitud + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Año + Dist_Parques + 
+               Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_casas1)
 Model1_stargazer <- stargazer(Model1, type="text", omit.stat=c("ser","f","adj.rsq"))
 Model1_stargazer <- as.data.frame(Model1_stargazer)
+train_casas1$Pred_Precios <- predict(Model1, newdata = train_casas1)
 
-modelo_final <- step(Model1, direction = "backward", trace = 0)
+Media_precio_casas <- mean(train_casas1$Precio)
 
-summary(modelo_final)
+Coef <- Model1$coefficients
+Sig_Ec.c <- round((exp(Coef)/Media_precio_casas)*100, digits = 3)
+Sig_Ec.c <- as.data.frame(Sig_Ec.c)
+Sig_Ec.c
 
 
+# ----------------------------------Grafica casas------------------------------------------#
+
+lPrecios_M_ols <- aggregate(train_casas1$lPrecio, by = list(train_casas1$Fecha), FUN = mean)
+colnames(lPrecios_M_ols) <- c("Fecha", "Precio_Promedio_Casas")
+lPrecios_M_ols$Tipo <- "Observado"
+
+lPrec_Pred_M_ols <- aggregate(train_casas1$Pred_Precios, by = list(train_casas1$Fecha), FUN = mean)
+colnames(lPrec_Pred_M_ols) <- c("Fecha", "Precio_Promedio_Casas")
+lPrec_Pred_M_ols$Tipo <- "Predicción"
+
+
+g_ols <- ggplot() +
+  geom_line(data = lPrecios_M_ols, aes(x = Fecha, y = Precio_Promedio_Casas, color = "Observado"), size = 1) +
+  geom_line(data = lPrec_Pred_M_ols, aes(x = Fecha, y = Precio_Promedio_Casas, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio de Casas OLS",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+    legend.position = "bottom"
+  )
+g_ols
+
+#Rega <- "C:/Output R/Taller 2/Taller_2/document/Mod_stargazer.xlsx"
+#write_xlsx(Model1_stargazer, path = Rega )
+
+
+#Y=train_casas1$Pred_Precios
+#X = as.matrix(train_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños","Latitud", "Longitud","Año", "M2_por_Habitacion", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Sala_BBQ_terraza","Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+
+# -------------------------------MODELOS DE RIDGE CASAS--------------------------------# 
+
+X <- as.matrix(train_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Longitud", "Latitud","Año", "Baños", "Area", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+y <- train_casas1$lPrecio
+
+# Ajustar un modelo de regresión Ridge
+ridge_model <- glmnet(X, y, alpha = 0)  # alpha = 0 para regresión Ridge
+dev.new()
+g_mse <- plot(ridge_model, xvar = "lambda")
+
+# Seleccionar el valor óptimo de lambda
+cv_ridge <- cv.glmnet(X, y, alpha = 0)  # alpha = 0 para regresión Ridge
+g_coef <- plot(cv_ridge)
+lambda_optimo <- cv_ridge$lambda.min
+lambda_optimo
+
+# Ajustar el modelo con el valor óptimo de lambda
+Model2 <- glmnet(X, y, alpha = 0, lambda = lambda_optimo)
+train_casas1$Pred_Precios_rg <- predict(Model2, s = lambda_optimo, newx = X)
+coef(Model2)
+
+
+
+# -------------------------------MODELOS LASSO CASAS--------------------------------# 
+
+X2 <- as.matrix(train_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Longitud", "Latitud", "Año", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+
+# Ajustar un modelo de regresión Lasso
+lasso_model <- glmnet(X2, y, alpha = 1)
+dev.new()
+g_mse <- plot(lasso_model, xvar = "lambda")
+
+# Seleccionar el valor óptimo de lambda
+cv_lasso <- cv.glmnet(X2, y, alpha = 1)  # alpha = 1 para regresión Lasso
+g_coef <- plot(cv_lasso)
+lambda_optimo_lasso <- cv_lasso$lambda.min
+lambda_optimo_lasso
+
+# Ajustar el modelo Lasso con el valor óptimo de lambda
+Model3 <- glmnet(X2, y, alpha = 1, lambda = lambda_optimo_lasso)
+train_casas1$Pred_Precios_ls <- predict(Model3, s = lambda_optimo_lasso, newx = X2)
+coef(Model3)
+
+
+# -------------------------------MODELO ELASTIC NET CASAS--------------------------------# 
+
+X3 <- as.matrix(train_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion","Longitud", "Latitud","Año", "M2_por_Habitacion_Garaje", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+
+Elasticnet_model <- glmnet(X3, y, alpha = 0.5)  
+
+# Seleccionar el valor óptimo de lambda
+cv_elasticnet <- cv.glmnet(X3, y, alpha = 0.5)  
+lambda_optimo_en <- cv_elasticnet$lambda.min
+lambda_optimo_en
+
+# Ajustar el modelo Elastic Net con el valor óptimo de lambda
+Model4 <- glmnet(X3, y, alpha = 0.5, lambda = lambda_optimo_en)
+train_casas1$Pred_Precios_en <- predict(Model4, s = lambda_optimo_en, newx = X3)
+coef(Model4)
+
+# Tabla_train_casas <- "C:/Output R/Taller 2/Taller_2/tabla_train_casas.xlsx"  
+# write_xlsx(train_casas1, Tabla_train_casas)
+
+
+# -------------------------------CREACION DE OTRAS VARIABLES-------------------------- # 
+train_apart1$M2_por_Habitacion<- train_apart1$Area/train_apart1$Habitaciones
+train_apart1$Habitaciones2<- train_apart1$Habitaciones^2
+train_apart1$M2_por_Habitacion_Garaje <- train_apart1$M2_por_Habitacion * train_apart1$Garaje
+train_apart1$Sala_BBQ_terraza <- train_apart1$Sala_BBQ * train_apart1$Terraza
+train_apart1$year <- as.character(train_apart1$year)
+train_apart1$month <- as.character(train_apart1$month)
+train_apart1$Fecha <- as.Date(paste0(train_apart1$year, "-", train_apart1$month, "-01"))
+train_apart1$Fecha <- as.Date(train_apart1$Fecha)
+train_apart1$Latitud <- train_apart1$lat
+train_apart1$Longitud <- train_apart1$lon
+train_apart1$Año <- as.numeric(train_apart1$year)
+
+# Tabla_train_apart <- "C:/Output R/Taller 2/Taller_2/tabla_train_apart.xlsx"  
+# write_xlsx(train_apart1,Tabla_train_apart)
+
+
+# -------------------------------MODELOS DE REGRESION LINEAL APARTAMENTOS----------------------------# 
+
+Model5 <- lm(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Latitud + Longitud + Terraza + Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Año + 
+               Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_apart1)
+Model5_stargazer <- stargazer(Model5, type="text", omit.stat=c("ser","f","adj.rsq"))
+Model5_stargazer <- as.data.frame(Model5_stargazer)
+train_apart1$Pred_Precios <- predict(Model5, newdata = train_apart1)
+#Regc <- "C:/Output R/Taller 2/Taller_2/document/Modc_stargazer.xlsx"
+#write_xlsx(Model5_stargazer, path = Regc )
+
+
+# ------------------------------------Grafica Predicciones OLS-------------------------- #
+
+# ------------------------------------Precios Observados------------------------------ #
+Precio_apart_t <- data.frame(train_apart1$property_id, train_apart1$Fecha, train_apart1$Precio)
+colnames(Precio_apart_t) <- c("property_id", "Fecha", "Precio")
+Precio_casa_t <- data.frame(train_casas1$property_id,train_casas1$Fecha, train_casas1$Precio)
+colnames(Precio_casa_t) <- c("property_id", "Fecha","Precio")
+Precios_t <- rbind(Precio_apart_t, Precio_apart_t)
+
+Precios_Prod_t <- aggregate(Precios_t$Precio, by = list(Precios_t$Fecha), FUN = mean)
+colnames(Precios_Prod_t) <- c("Fecha", "Precio_Promedio")
+Precios_Prod_t$Tipo <- "Observado"
+
+
+Pred_apart_ols_t <- data.frame(train_apart1$property_id, train_apart1$Fecha, exp(train_apart1$Pred_Precios))
+colnames(Pred_apart_ols_t) <- c("property_id", "Fecha", "Precio")
+Pred_casas_ols_t <- data.frame(train_casas1$property_id,train_casas1$Fecha, exp(train_casas1$Pred_Precios))
+colnames(Pred_casas_ols_t) <- c("property_id", "Fecha", "Precio")
+Pred_ols_t <- rbind(Pred_casas_ols_t, Pred_apart_ols_t)
+
+Pred_ols_t  <- aggregate(Pred_ols_t$Precio, by = list(Pred_ols_t$Fecha), FUN = mean)
+colnames(Pred_ols_t) <- c("Fecha", "Precio_Promedio")
+Pred_ols_t$Tipo <- "Predicción"
+
+
+g_ols <- ggplot() +
+  geom_line(data = Precios_Prod_t, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
+  geom_line(data = Pred_ols_t, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
+  labs(
+    title = "Precios Promedio vs Estimación OLS",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray"),
+    legend.position = "bottom"
+  )
+g_ols
+
+
+# -------------------------------MODELOS DE RIDGE APARTAMENTO--------------------------------# 
+
+X1 <- as.matrix(train_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños","M2_por_Habitacion","Latitud", "Longitud","Año", "M2_por_Habitacion_Garaje", "Terraza", "Garaje", "Gimnasio", "Chimenea", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+y1 <- train_apart1$lPrecio
+
+# Modelo de regresión Ridge
+ridge_model1 <- glmnet(X1, y1, alpha = 0) 
+dev.new()
+g_mse <- plot(ridge_model1, xvar = "lambda")
+
+# Seleccionar el valor óptimo de lambda
+cv_ridge1 <- cv.glmnet(X1, y1, alpha = 0) 
+g_coef <- plot(cv_ridge1)
+lambda_opt_apart <- cv_ridge1$lambda.min
+lambda_opt_apart
+
+# Modelo con el valor óptimo de lambda
+Model6 <- glmnet(X1, y1, alpha = 0, lambda = lambda_opt_apart)
+train_apart1$Pred_Precios_rg <- predict(Model6, s = lambda_opt_apart, newx = X1)
+coef(Model6)
+
+# ------------------------------------Grafica Predicciones Ridge-------------------------- #
+
+Pred_apart_rgd_t <- data.frame(train_apart1$property_id, train_apart1$Fecha, exp(train_apart1$Pred_Precios_rg))
+colnames(Pred_apart_rgd_t) <- c("property_id", "Fecha", "Precio")
+Pred_casas_rgd_t <- data.frame(train_casas1$property_id,train_casas1$Fecha, exp(train_casas1$Pred_Precios_rg))
+colnames(Pred_casas_rgd_t) <- c("property_id", "Fecha", "Precio")
+Pred_rgd_t <- rbind(Pred_casas_rgd_t, Pred_apart_rgd_t)
+
+Pred_rgd_t  <- aggregate(Pred_rgd_t$Precio, by = list(Pred_rgd_t$Fecha), FUN = mean)
+colnames(Pred_rgd_t) <- c("Fecha", "Precio_Promedio")
+Pred_rgd_t$Tipo <- "Predicción"
+
+
+g_rgd <- ggplot() +
+  geom_line(data = Precios_Prod_t, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
+  geom_line(data = Pred_rgd_t, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
+  labs(
+    title = "Precios Promedio vs Estimación Ridge",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray"),
+    legend.position = "bottom"
+  )
+g_rgd
+
+
+# -------------------------------MODELOS LASSO APARTAMENTO--------------------------------# 
+X2 <- as.matrix(train_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion","Latitud", "Longitud","Año", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+
+# Ajustar un modelo de regresión Lasso
+lasso_model1 <- glmnet(X2, y1, alpha = 1)
+dev.new()
+g_mse1 <- plot(lasso_model1, xvar = "lambda")
+
+# Seleccionar el valor óptimo de lambda
+cv_lasso1 <- cv.glmnet(X2, y1, alpha = 1)  # alpha = 1 para regresión Lasso
+g_coef1 <- plot(cv_lasso1)
+lambda_opt_ls_apart <- cv_lasso1$lambda.min
+lambda_opt_ls_apart
+
+# Ajustar el modelo Lasso con el valor óptimo de lambda
+Model7 <- glmnet(X2, y1, alpha = 1, lambda = lambda_opt_ls_apart)
+train_apart1$Pred_Precios_ls <- predict(Model7, s = lambda_opt_ls_apart, newx = X2)
+coef(Model7)
+
+
+# ------------------------------------Grafica Predicciones Lasso-------------------------- #
+
+Pred_apart_ls_t <- data.frame(train_apart1$property_id, train_apart1$Fecha, exp(train_apart1$Pred_Precios_ls))
+colnames(Pred_apart_ls_t) <- c("property_id", "Fecha", "Precio")
+Pred_casas_ls_t <- data.frame(train_casas1$property_id,train_casas1$Fecha, exp(train_casas1$Pred_Precios_ls))
+colnames(Pred_casas_ls_t) <- c("property_id", "Fecha", "Precio")
+Pred_ls_t <- rbind(Pred_casas_ls_t, Pred_apart_ls_t)
+
+Pred_ls_t  <- aggregate(Pred_ls_t$Precio, by = list(Pred_ls_t$Fecha), FUN = mean)
+colnames(Pred_ls_t) <- c("Fecha", "Precio_Promedio")
+Pred_ls_t$Tipo <- "Predicción"
+
+
+g_ls <- ggplot() +
+  geom_line(data = Precios_Prod_t, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
+  geom_line(data = Pred_ls_t, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
+  labs(
+    title = "Precios Promedio vs Estimación Lasso",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray"),
+    legend.position = "bottom"
+  )
+g_ls
+
+
+# ------------------------------MODELO ELASTIC NET APARTAMENTO-------------------------------# 
+X4 <- as.matrix(train_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "Area","Latitud", "Longitud","Año", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+
+# Modelo de regresión Elastic Net
+Elasticnet_model1 <- glmnet(X4, y1, alpha = 0.5)  # alpha = 0.5 para Elastic Net
+
+# Seleccionar el valor óptimo de lambda
+cv_elasticnet1 <- cv.glmnet(X4, y1, alpha = 0.5)  
+lambda_opt_en_apart <- cv_elasticnet1$lambda.min
+lambda_opt_en_apart
+
+# Ajustar el modelo Elastic Net con el valor óptimo de lambda
+Model8 <- glmnet(X4, y1, alpha = 0.5, lambda = lambda_opt_en_apart)
+train_apart1$Pred_Precios_en <- predict(Model8, s = lambda_opt_en_apart, newx = X4)
+coef(Model8)
+
+# ------------------------------------Grafica Predicciones Elastic Net-------------------------- #
+
+Pred_apart_en_t <- data.frame(train_apart1$property_id, train_apart1$Fecha, exp(train_apart1$Pred_Precios_en))
+colnames(Pred_apart_en_t) <- c("property_id", "Fecha", "Precio")
+Pred_casas_en_t <- data.frame(train_casas1$property_id,train_casas1$Fecha, exp(train_casas1$Pred_Precios_en))
+colnames(Pred_casas_en_t) <- c("property_id", "Fecha", "Precio")
+Pred_en_t <- rbind(Pred_casas_en_t, Pred_apart_en_t)
+
+Pred_en_t  <- aggregate(Pred_en_t$Precio, by = list(Pred_en_t$Fecha), FUN = mean)
+colnames(Pred_en_t) <- c("Fecha", "Precio_Promedio")
+Pred_en_t$Tipo <- "Predicción"
+
+
+g_en <- ggplot() +
+  geom_line(data = Precios_Prod_t, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
+  geom_line(data = Pred_en_t, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
+  labs(
+    title = "Precios Promedio vs Estimación Elastic Net",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray"),
+    legend.position = "bottom"
+  )
+g_en
+
+
+#tabla_train_apart <- "C:/Output R/Taller 2/Taller_2/tabla_train_apart.xlsx"  
+#write_xlsx(train_apart1, tabla_train_apart)
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA-------------------------------# 
+
+# -------------------------------CREACION DE OTRAS VARIABLES CASAS-------------------------# 
+
+test_casas1$Habitaciones2 <- test_casas1$Habitaciones^2
+test_casas1$M2_por_Habitacion_Garaje <- test_casas1$M2_por_Habitacion * test_casas1$Garaje
+test_casas1$Sala_BBQ_terraza <- test_casas1$Sala_BBQ * test_casas1$Terraza
+test_casas1$year <- as.character(test_casas1$year)
+test_casas1$month <- as.character(test_casas1$month)
+test_casas1$Fecha <- as.Date(paste0(test_casas1$year, "-", test_casas1$month, "-01"))
+test_casas1$Fecha <- as.Date(test_casas1$Fecha)
+test_casas1$Latitud <- test_casas1$lat
+test_casas1$Longitud <- test_casas1$lon
+test_casas1$Año <- as.numeric(test_casas1$year)
+
+
+# -------------------------------CREACION DE OTRAS VARIABLES CASAS-------------------------# 
+
+test_apart1$Habitaciones2 <- test_apart1$Habitaciones^2
+test_apart1$M2_por_Habitacion_Garaje <- test_apart1$M2_por_Habitacion * test_apart1$Garaje
+test_apart1$Sala_BBQ_terraza <- test_apart1$Sala_BBQ * test_apart1$Terraza
+test_apart1$year <- as.character(test_apart1$year)
+test_apart1$month <- as.character(test_apart1$month)
+test_apart1$Fecha <- as.Date(paste0(test_apart1$year, "-", test_apart1$month, "-01"))
+test_apart1$Fecha <- as.Date(test_apart1$Fecha)
+test_apart1$Latitud <- test_apart1$lat
+test_apart1$Longitud <- test_apart1$lon
+test_apart1$Año <- as.numeric(test_apart1$year)
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA OLS-------------------------------# 
+
+Pred_casas_ols <- data.frame(test_casas1$property_id, exp(predict(Model1, newdata = test_casas1)))
+colnames(Pred_casas_ols) <- c("property_id", "Precio_Pred_ols")
+Pred_apart_ols <- data.frame(test_apart1$property_id, exp(predict(Model5, newdata = test_apart1)))
+colnames(Pred_apart_ols) <- c("property_id", "Precio_Pred_ols")
+Pred_ols_fm <- rbind(Pred_casas_ols, Pred_apart_ols)
+
+
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pronost_ols.csv"  
+#write.csv(x = Pred_ols_fm,
+#file = paste0(tabla_pronost, 'Pronost_ols.csv'),
+#row.names = FALSE)
+
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA RIDGE-----------------------------# 
+
+Xc_test <- as.matrix(test_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "Area","Longitud", "Latitud","Año", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+Xa_test <- as.matrix(test_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños","M2_por_Habitacion", "Longitud", "Latitud","Año","M2_por_Habitacion_Garaje", "Terraza", "Garaje", "Gimnasio", "Chimenea", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+
+
+Pred_casas_rg <- data.frame(test_casas1$property_id, exp(predict(Model2, s = lambda_optimo, newx = Xc_test)))
+colnames(Pred_casas_rg) <- c("property_id", "Precio_Pred_rg")
+Pred_apart_rg <- data.frame(test_apart1$property_id, exp(predict(Model6, s = lambda_opt_apart, newx = Xa_test)))
+colnames(Pred_apart_rg) <- c("property_id", "Precio_Pred_rg")
+Pred_rg_fm <- rbind(Pred_casas_rg, Pred_apart_rg)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos.xlsx"  
+#write_xlsx(Pred_rg_fm, tabla_pronost)
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA LASSO-----------------------------# 
+
+Xc1_test <- as.matrix(test_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños","Longitud", "Latitud","Año", "M2_por_Habitacion", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+Xa1_test <- as.matrix(test_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "Longitud", "Latitud","Año","M2_por_Habitacion", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+
+Pred_casas_ls <- data.frame(test_casas1$property_id, exp(predict(Model3, s = lambda_optimo_lasso, newx = Xc1_test)))
+colnames(Pred_casas_ls) <- c("property_id", "Precio_Pred_ls")
+Pred_apart_ls <- data.frame(test_apart1$property_id, exp(predict(Model7, s = lambda_opt_ls_apart, newx = Xa1_test)))
+colnames(Pred_apart_ls) <- c("property_id", "Precio_Pred_ls")
+Pred_ls_fm <- rbind(Pred_casas_ls, Pred_apart_ls)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/tabla_pronosticos.xlsx"  
+#write_xlsx(Pred_ls_fm, tabla_pronost)
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA ELASTIC NET-----------------------------# 
+
+Xc2_test <- as.matrix(test_casas1[,  c("Estrato", "Habitaciones", "Habitaciones2", "Longitud", "Latitud","Año","Baños", "M2_por_Habitacion","M2_por_Habitacion_Garaje", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+Xa2_test <- as.matrix(test_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Longitud", "Latitud","Año", "Baños", "Area", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+
+Pred_casas_en <- data.frame(test_casas1$property_id, exp(predict(Model4, s = lambda_optimo_en, newx = Xc2_test)))
+colnames(Pred_casas_en) <- c("property_id", "Precio_Pred_en")
+Pred_apart_en <- data.frame(test_apart1$property_id, exp(predict(Model8, s = lambda_opt_en_apart, newx = Xa2_test)))
+colnames(Pred_apart_en) <- c("property_id", "Precio_Pred_en")
+Pred_en_fm <- rbind(Pred_casas_en, Pred_apart_en)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pronost_en.csv"  
+#write.csv(x = Pred_en_fm,
+#file = paste0(tabla_pronost, 'Pronost_en.csv'),
+#row.names = FALSE)
+
+# ------------------------------ERRORES DENTRO DE MUESTRA MSE----------------------------------------# 
+# -------------------------------------------------------------------------------------------------- #
+
+train_1 <- rbind(train_apart1, train_casas1)
+
+MAE_1t <- mean(abs(exp(train_1$Pred_Precios) - train_1$Precio))
+MAE_2t <- mean(abs(exp(train_1$Pred_Precios_rg) - train_1$Precio))
+MAE_3t <- mean(abs(exp(train_1$Pred_Precios_ls) - train_1$Precio))
+MAE_4t <- mean(abs(exp(train_1$Pred_Precios_en) - train_1$Precio))
+
+
+# Luego puedes almacenar los resultados en un dataframe
+Errores_MAEt <- data.frame(
+  Modelos = c("OLS", "Ridge", "Lasso", "Elastic_Net"),
+  MAE = c(MAE_1t, MAE_2t, MAE_3t, MAE_4t))
+Errores_MAEt 
+
+
+#-----------Elaboración de Modelos para pronosticar el Precio de las Casas y Apartamentos-------------------##
+##--------------------------------------------Datos de Estrato 4--------------------------------------------##
+
+
+##--------------------------- Bases de Datos Casas y Apartamentos------------------##
+
+##---------------------------------------------------CASAS-------------------------------------------------------------------------------------------
+
+train_casas_E4 <- train_casas1[train_casas1$Estrato == 4, c("property_id","title", "Fecha", "localidad","Precio", "lPrecio", 
+                                                    "Precio_M2", "Habitaciones","Habitaciones2" ,"Baños", "Area","M2_por_Habitacion", "Latitud", "Longitud", "Año", "Terraza", 
+                                                    "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
+                                                    "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", 
+                                                    "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")]
+
+
+test_casas_4 <- test_casas1[test_casas1$Estrato == 4, c("property_id","title", "Fecha", "localidad","Precio", "lPrecio", 
+                                                            "Precio_M2", "Habitaciones","Habitaciones2" ,"Baños", "Area","M2_por_Habitacion", "Latitud", "Longitud", "Año", "Terraza", 
+                                                            "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
+                                                            "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", 
+                                                            "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")]
+
+
+
+# El conjunto de entrenamiento va a tener el 70% de los datos 
+set.seed(123)
+data_split <- initial_split(train_casas_E4, prop = .7)
+train_cE4 <- training(data_split)
+test_cE4  <- testing(data_split)
+
+
+# Crear la receta
+rec1 <- recipe(lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion, data = train_cE4)
+rec2 <- recipe(lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Longitud + Latitud + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad,  data = train_cE4)
+rec3 <- recipe(lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Longitud + Latitud + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Año + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+               + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_cE4)
+
+lm_mod <- linear_reg() 
+
+# Crear el flujo de trabajo
+wf1 <- workflow() %>% add_recipe(rec1) %>% add_model(lm_mod)
+wf2 <- workflow() %>% add_recipe(rec2) %>% add_model(lm_mod)
+wf3 <- workflow() %>% add_recipe(rec3) %>% add_model(lm_mod)
+
+# ---------------------------------------------Estimación 1---------------------------------------------------#   
+Reg1.1 <- wf1 %>%
+  fit(data = train_cE4)
+test_pred1.1 <- predict(Reg1.1 , new_data = test_cE4) %>% 
+  bind_cols(test_cE4)
+test_rmse.1.1 <- rmse(test_pred1.1, truth = lPrecio, estimate = .pred)
+test_rmse.1.1$.estimate
+
+# ---------------------------------------------Estimación 2---------------------------------------------------#   
+Reg1.2 <- wf2 %>%
+  fit(data = train_cE4)
+test_pred1.2 <- predict(Reg1.2 , new_data = test_cE4) %>% 
+  bind_cols(test_cE4)
+test_rmse.1.2 <- rmse(test_pred1.2, truth = lPrecio, estimate = .pred)
+test_rmse.1.2$.estimate
+
+# ---------------------------------------------Estimación 3---------------------------------------------------#   
+Reg1.3 <- wf3 %>%
+  fit(data = train_casas_E4)
+Pred1.3_ols <- predict(Reg1.3 , new_data = test_cE4) %>% 
+  bind_cols(test_cE4)
+test_rmse.1.3 <- rmse(Pred1.3_ols, truth = lPrecio, estimate = .pred)
+test_rmse.1.3$.estimate
+tidy(Reg1.3)
+test_cE4$Predict_ols<- Pred1.3_ols$.pred
+
+# Ajustar un modelo lineal a los datos
+Mod_1.3 <- lm(lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Latitud + Longitud + Terraza + Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Año + Dist_Parques +
+                Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_casas_E4 )
+Mod_1.3_stargazer <- stargazer(Mod_1.3, type = "text", omit.stat = c("ser", "f", "adj.rsq"))
+Mod_1.3_stargazer <- as.data.frame(Mod_1.3_stargazer)
+#Regc2 <- "C:/Output R/Taller 2/Taller_2/document/Mod_1.3_stargazer.xlsx"
+#write_xlsx(Mod_1.3_stargazer, path = Regc2)
+
+
+
+#-----------------------------------------------------------------------------------------------------------------
+Reg1.3_ <- wf3 %>%
+  fit(data = train_casas_E4)
+tidy(Reg1.3_)
+#-----------------------------------------------------------------------------------------------------------------
+
+lPrecios_Medios1 <- aggregate(test_cE4$lPrecio, by = list(test_cE4$Fecha), FUN = mean)
+colnames(lPrecios_Medios1) <- c("Fecha", "Precio_Promedio_Casas")
+lPrecios_Medios1$Tipo <- "Observado"
+
+lPrecios_Medios1_pred_ols <- aggregate(test_cE4$Predict_ols, by = list(test_cE4$Fecha), FUN = mean)
+colnames(lPrecios_Medios1_pred_ols) <- c("Fecha", "Precio_Promedio_Casas")
+lPrecios_Medios1_pred_ols$Tipo <- "Predicción"
+
+
+g_ols <- ggplot() +
+  geom_line(data = lPrecios_Medios1, aes(x = Fecha, y = Precio_Promedio_Casas, color = "Observado"), size = 1) +
+  geom_line(data = lPrecios_Medios1_pred_ols, aes(x = Fecha, y = Precio_Promedio_Casas, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio de Casas OLS",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_ols
+
+
+
+##---------------------------------------Apartamentos ----------------------------------------##
+
+train_apart_E4 <- train_apart1[train_apart1$Estrato == 4, c("property_id","title", "Fecha", "localidad","Precio", "lPrecio", 
+                                                     "Precio_M2", "Habitaciones","Habitaciones2", "Baños", "Area","M2_por_Habitacion", "Latitud", "Longitud","Año", "Terraza", 
+                                                     "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
+                                                     "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", 
+                                                     "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")]
+
+
+
+test_apart_4 <- test_apart1[test_apart1$Estrato == 4, c("property_id","title", "Fecha", "localidad","Precio", "lPrecio", 
+                                                        "Precio_M2", "Habitaciones","Habitaciones2" ,"Baños", "Area","M2_por_Habitacion", "Latitud", "Longitud","Año", "Terraza", 
+                                                        "Garaje", "Sala_BBQ","Piscina","Gimnasio", "Chimenea","Seguridad",
+                                                        "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", 
+                                                        "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")]
+
+
+# El conjunto de entrenamiento va a tener el 70% de los datos 
+set.seed(123)
+data_split <- initial_split(train_apart_E4, prop = .7)
+train_aE4 <- training(data_split)
+test_aE4  <- testing(data_split)
+
+
+# Crear la receta
+rec_1 <- recipe(lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion, data = train_aE4)
+rec_2 <- recipe(lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Latitud + Longitud + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad,  data = train_aE4)
+rec_3 <- recipe(lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Latitud + Longitud + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Año + Dist_Parques +
+                  Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_aE4)
+
+lm_mod <- linear_reg() 
+
+# Crear el flujo de trabajo
+wf_1 <- workflow() %>% add_recipe(rec_1) %>% add_model(lm_mod)
+wf_2 <- workflow() %>% add_recipe(rec_2) %>% add_model(lm_mod)
+wf_3 <- workflow() %>% add_recipe(rec_3) %>% add_model(lm_mod)
+
+# ---------------------------------------------Estimación 1---------------------------------------------------#   
+Reg2.1 <- wf_1 %>%
+  fit(data = train_aE4)
+test_pred2.1 <- predict(Reg1.1 , new_data = test_aE4) %>% 
+  bind_cols(test_aE4)
+test_rmse.2.1 <- rmse(test_pred2.1, truth = lPrecio, estimate = .pred)
+test_rmse.2.1$.estimate
+
+# ---------------------------------------------Estimación 2---------------------------------------------------#   
+Reg2.2 <- wf_2 %>%
+  fit(data = train_aE4)
+test_pred2.2 <- predict(Reg2.2 , new_data = test_aE4) %>% 
+  bind_cols(test_aE4)
+test_rmse.2.2 <- rmse(test_pred2.2, truth = lPrecio, estimate = .pred)
+test_rmse.2.2$.estimate
+
+# ---------------------------------------------Estimación 3---------------------------------------------------#   
+Reg2.3 <- wf_3 %>%
+  fit(data = train_apart_E4)
+Pred2.3_ols <- predict(Reg2.3 , new_data = test_aE4) %>% 
+  bind_cols(test_aE4)
+test_rmse.2.3 <- rmse(Pred2.3_ols, truth = lPrecio, estimate = .pred)
+test_rmse.2.3$.estimate
+tidy(Reg2.3)
+test_aE4$Predict_ols<- Pred2.3_ols$.pred
+
+#-----------------------------------------------------------------------------------------------------------------
+# Ajustar un modelo lineal a los datos
+Mod_2.3 <- lm(lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Latitud + Longitud + Terraza + Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Año + Dist_Parques +
+                Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_apart_E4 )
+Mod_2.3_stargazer <- stargazer(Mod_2.3, type = "text", omit.stat = c("ser", "f", "adj.rsq"))
+Mod_2.3_stargazer <- as.data.frame(Mod_2.3_stargazer)
+#Rega2 <- "C:/Output R/Taller 2/Taller_2/document/Mod_2.3_stargazer.xlsx"
+#write_xlsx(Mod_2.3_stargazer, path = Rega2)
+
+#-----------------------------------------------------------------------------------------------------------------
+
+
+# ------------------------------------Precios Observados------------------------------ #
+Precio_casa_4 <- data.frame(test_cE4$property_id,test_cE4$Fecha, test_cE4$Precio)
+colnames(Precio_casa_4) <- c("property_id", "Fecha", "Precio")
+Precio_apart_4 <- data.frame(test_aE4$property_id,test_aE4$Fecha, test_aE4$Precio)
+colnames(Precio_apart_4) <- c("property_id", "Fecha","Precio")
+Precios_4 <- rbind(Precio_casa_4, Precio_apart_4)
+
+Precios_Prod_4 <- aggregate(Precios_4$Precio, by = list(Precios_4$Fecha), FUN = mean)
+colnames(Precios_Prod_4) <- c("Fecha", "Precio_Promedio")
+Precios_Prod_4$Tipo <- "Observado"
+
+
+# ------------------------------------Precios Predicciones OLS-------------------------- #
+Pred_casa_ols_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_ols))
+colnames(Pred_casa_ols_4) <- c("property_id", "Fecha", "Precio_Pred_OLS")
+Pred_apart_ols_4<- data.frame(test_aE4$property_id,test_aE4$Fecha, exp(test_aE4$Predict_ols))
+colnames(Pred_apart_ols_4) <- c("property_id", "Fecha", "Precio_Pred_OLS")
+Pred_ols_4 <- rbind(Pred_casa_ols_4, Pred_apart_ols_4)
+
+Precios_Prod_ols <- aggregate(Pred_ols_4$Precio, by = list(Pred_ols_4$Fecha), FUN = mean)
+colnames(Precios_Prod_ols) <- c("Fecha", "Precio_Promedio")
+Precios_Prod_ols$Tipo <- "Predicción"
+
+
+g_ols <- ggplot() +
+  geom_line(data = Precios_Prod_4, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
+  geom_line(data = Precios_Prod_ols, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio OLS",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_ols
+
+
+# ------------------------------------------RIDGE--------------------------------------------- #
+# ---------------------------------------APARTAMENTOS----------------------------------------- #
+# Esto se utilizará para evaluar el rendimiento del modelo en diferentes subconjuntos de  datos durante la validación cruzada.
+
+
+train_aE4_fold <- vfold_cv(train_aE4, v = 5)
+
+ridge_recipe <- 
+  recipe(formula =lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+         + Longitud + Latitud + Año + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_aE4) %>% 
+  step_interact(terms = ~ M2_por_Habitacion:Terraza + M2_por_Habitacion:Garaje) %>% 
+  step_novel(all_nominal_predictors()) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_zv(all_predictors()) %>% 
+  step_normalize(Habitaciones, Habitaciones2, Baños, M2_por_Habitacion)
+
+
+ridge_spec <- linear_reg(penalty = tune(), mixture = 0) %>%
+    set_mode("regression") %>%
+    set_engine("glmnet")
+
+
+ridge_workflow <- workflow() %>%
+  add_recipe(ridge_recipe) %>%
+  add_model(ridge_spec)
+
+# Definir una cuadrícula de valores de penalización utilizando 'grid_regular'
+penalty_grid <- grid_regular(penalty(range = c(-4, 1)), levels = 30)
+penalty_grid
+
+# Realizar la búsqueda de hiperparámetros utilizando 'tune_grid'
+tune_res <- tune_grid(
+  ridge_workflow,         # El flujo de trabajo que contiene: receta y especificación del modelo
+  resamples = train_aE4_fold,  # Folds de validación cruzada
+  grid = penalty_grid,        # Grilla de valores de penalización
+  metrics = metric_set(rmse)
+)
+tune_res
+
+
+# gráfico de los resultados de hiperparámetros
+autoplot(tune_res)
+collect_metrics(tune_res)
+
+best_penalty <- select_best(tune_res, metric = "rmse")
+best_penalty
+
+ridge_final <- finalize_workflow(ridge_workflow, best_penalty)
+Ridge_a <- fit(ridge_final, data = train_apart_E4)
+test_aE4$Predict_rgd<- predict(Ridge_a, new_data = test_aE4)
+test_aE4$Predict_rgd <- unlist(test_aE4$Predict_rgd)
+test_aE4$Predict_rgd <- as.numeric(test_aE4$Predict_rgd)
+
+#--------------------------------------------------------------------------------------------------------
+Ridge_a_ <- fit(ridge_final, data = train_apart1)
+
+# ---------------------------------------CASAS----------------------------------------- #
+# Esto se utilizará para evaluar el rendimiento del modelo en diferentes subconjuntos de  datos durante la validación cruzada.
+
+train_cE4_fold <- vfold_cv(train_cE4, v = 5)
+
+ridge_recipe_c <- 
+  recipe(formula =lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+         + Latitud + Longitud + Año + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_cE4) %>% 
+  step_interact(terms = ~ M2_por_Habitacion:Terraza + M2_por_Habitacion:Garaje) %>% 
+  step_novel(all_nominal_predictors()) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_zv(all_predictors()) %>% 
+  step_normalize(Habitaciones, Habitaciones2, Baños, M2_por_Habitacion)
+
+ridge_spec_c <- linear_reg(penalty = tune(), mixture = 0) %>%
+  set_mode("regression") %>%
+  set_engine("glmnet")
+
+ridge_c_workflow <- workflow() %>%
+  add_recipe(ridge_recipe_c) %>%
+  add_model(ridge_spec_c)
+
+# Definir una cuadrícula de valores de penalización utilizando 'grid_regular'
+penalty_grid_c <- grid_regular(penalty(range = c(-4, 1)), levels = 30)
+penalty_grid_c
+
+# Realizar la búsqueda de hiperparámetros utilizando 'tune_grid'
+tune_res_c <- tune_grid(
+  ridge_c_workflow,         # El flujo de trabajo que contiene: receta y especificación del modelo
+  resamples = train_cE4_fold,  # Folds de validación cruzada
+  grid = penalty_grid_c,        # Grilla de valores de penalización
+  metrics = metric_set(rmse)
+)
+tune_res_c
+
+# gráfico de los resultados de hiperparámetros
+autoplot(tune_res_c)
+collect_metrics(tune_res_c)
+
+best_penalty_c <- select_best(tune_res_c, metric = "rmse")
+best_penalty_c
+
+ridge_final_c <- finalize_workflow(ridge_c_workflow, best_penalty_c)
+Ridge_c <- fit(ridge_final_c, data = train_casas_E4)
+test_cE4$Predict_rgd <- predict(Ridge_c, new_data = test_cE4)
+test_cE4$Predict_rgd <- unlist(test_cE4$Predict_rgd)
+test_cE4$Predict_rgd <- as.numeric(test_cE4$Predict_rgd)
+
+#--------------------------------------------------------------------------------------------------------
+Ridge_c_ <- fit(ridge_final, data = train_apart1)
+
+# ------------------------------------Precios Predicciones RIDGE-------------------------- #
+Pred_casa_rgd_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_rgd))
+colnames(Pred_casa_rgd_4) <- c("property_id", "Fecha", "Precio_Pred_Ridge")
+Pred_apart_rgd_4<- data.frame(test_aE4$property_id, test_aE4$Fecha, exp(test_aE4$Predict_rgd))
+colnames(Pred_apart_rgd_4) <- c("property_id", "Fecha", "Precio_Pred_Ridge")
+Pred_rgd_4 <- rbind(Pred_casa_rgd_4, Pred_apart_rgd_4)
+
+Precios_Prod_rgd <- aggregate(Pred_rgd_4$Precio, by = list(Pred_rgd_4$Fecha), FUN = mean)
+colnames(Precios_Prod_rgd) <- c("Fecha", "Precio_Promedio")
+Precios_Prod_rgd$Tipo <- "Predicción"
+
+
+g_rgd <- ggplot() +
+  geom_line(data = Precios_Prod_4, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
+  geom_line(data = Precios_Prod_rgd, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio Ridge",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_rgd
+
+
+# ------------------------------------------LASSO--------------------------------------------- #
+# ---------------------------------------APARTAMENTOS----------------------------------------- #
+
+lasso_recipe <- 
+  recipe(formula =lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+         + Latitud + Longitud + Año + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_aE4) %>% 
+  step_interact(terms = ~ M2_por_Habitacion:Terraza + M2_por_Habitacion:Garaje) %>% 
+  step_novel(all_nominal_predictors()) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_zv(all_predictors()) %>% 
+  step_normalize(Habitaciones, Habitaciones2, Baños, M2_por_Habitacion)
+
+lasso_spec <- 
+  linear_reg(penalty = tune(), mixture = 1) %>%
+  set_mode("regression") %>%
+  set_engine("glmnet") 
+
+lasso_workflow <- workflow() %>%
+  add_recipe(lasso_recipe) %>%
+  add_model(lasso_spec)
+
+# Generar una cuadrícula de valores de penalización
+penalty_grid <- grid_regular(penalty(range = c(-2, 2)), levels = 50)
+
+# Hiperparámetros utilizando tune_grid
+tune_res_la <- tune_grid(lasso_workflow,resamples = train_aE4_fold, grid = penalty_grid,metrics = metric_set(rmse))
+autoplot(tune_res_la)
+
+best_penalty_la <- select_best(tune_res_la, metric = "rmse")
+lasso_final_a <- finalize_workflow(lasso_workflow, best_penalty_la)
+Lasso_a <- fit(lasso_final_a, data = train_apart_E4)
+test_aE4$Predict_ls<- predict(Lasso_a, new_data = test_aE4)
+test_aE4$Predict_ls <- unlist(test_aE4$Predict_ls)
+test_aE4$Predict_ls <- as.numeric(test_aE4$Predict_ls)
+
+
+# ---------------------------------------CASAS----------------------------------------- #
+
+lasso_recipe_c <- 
+  recipe(formula =lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+         + Longitud + Latitud + Año + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_cE4) %>% 
+  step_interact(terms = ~ M2_por_Habitacion:Terraza + M2_por_Habitacion:Garaje) %>% 
+  step_novel(all_nominal_predictors()) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_zv(all_predictors()) %>% 
+  step_normalize(Habitaciones, Habitaciones2, Baños, M2_por_Habitacion)
+
+lasso_spec_c <- 
+  linear_reg(penalty = tune(), mixture = 1) %>%
+  set_mode("regression") %>%
+  set_engine("glmnet") 
+
+lasso_c_workflow <- workflow() %>%
+  add_recipe(lasso_recipe_c) %>%
+  add_model(lasso_spec_c)
+
+# Generar una cuadrícula de valores de penalización
+penalty_grid_lc <- grid_regular(penalty(range = c(-2, 2)), levels = 50)
+
+# Hiperparámetros utilizando tune_grid
+tune_res_lc <- tune_grid(lasso_c_workflow, resamples = train_cE4_fold, grid = penalty_grid_lc, metrics = metric_set(rmse))
+autoplot(tune_res_lc)
+
+best_penalty_lc <- select_best(tune_res_lc, metric = "rmse")
+lasso_final_c <- finalize_workflow(lasso_c_workflow, best_penalty_lc)
+Lasso_c <- fit(lasso_final_c, data = train_casas_E4)
+test_cE4$Predict_ls<- predict(Lasso_c, new_data = test_cE4)
+test_cE4$Predict_ls <- unlist(test_cE4$Predict_ls)
+test_cE4$Predict_ls <- as.numeric(test_cE4$Predict_ls)
+
+
+# ------------------------------------Precios Predicciones Lasso-------------------------- #
+Pred_casa_ls_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_ls))
+colnames(Pred_casa_ls_4) <- c("property_id", "Fecha", "Precio_Pred_Lasso")
+Pred_apart_ls_4<- data.frame(test_aE4$property_id, test_aE4$Fecha, exp(test_aE4$Predict_ls))
+colnames(Pred_apart_ls_4) <- c("property_id", "Fecha", "Precio_Pred_Lasso")
+Pred_ls_4 <- rbind(Pred_casa_ls_4, Pred_apart_ls_4)
+
+Precios_Prod_ls <- aggregate(Pred_ls_4$Precio, by = list(Pred_ls_4$Fecha), FUN = mean)
+colnames(Precios_Prod_ls) <- c("Fecha", "Precio_Promedio")
+Precios_Prod_ls$Tipo <- "Predicción"
+
+
+g_ls <- ggplot() +
+  geom_line(data = Precios_Prod_4, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
+  geom_line(data = Precios_Prod_ls, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio Lasso",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_ls
+
+
+# ------------------------------------------ELASTIC NET----------------------------------------- #
+# ---------------------------------------APARTAMENTOS----------------------------------------- #
+
+elasNet_recipe <- 
+  recipe(formula =lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+         + Longitud + Latitud + Año + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_aE4) %>% 
+  step_interact(terms = ~ M2_por_Habitacion:Terraza + M2_por_Habitacion:Garaje) %>% 
+  step_novel(all_nominal_predictors()) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_zv(all_predictors()) %>% 
+  step_normalize(Habitaciones, Habitaciones2, Baños, M2_por_Habitacion)
+
+elasNet_spec <- 
+  linear_reg(penalty = tune(), mixture = 0.5) %>%
+  set_mode("regression") %>%
+  set_engine("glmnet") 
+
+elasNet_workflow <- workflow() %>%
+  add_recipe(elasNet_recipe) %>%
+  add_model(elasNet_spec)
+
+# Generar una cuadrícula de valores de penalización
+penalty_grid_en <- grid_regular(penalty(range = c(-2, 2)), levels = 50)
+
+# Hiperparámetros utilizando tune_grid
+tune_res_en <- tune_grid(elasNet_workflow, resamples = train_aE4_fold, grid = penalty_grid_en, metrics = metric_set(rmse))
+autoplot(tune_res_en)
+
+best_penalty_en <- select_best(tune_res_en, metric = "rmse")
+elasNet_final <- finalize_workflow(elasNet_workflow, best_penalty_en)
+elasNet_a <- fit(elasNet_final, data = train_apart_E4)
+test_aE4$Predict_en<- predict(elasNet_a, new_data = test_aE4)
+test_aE4$Predict_en <- unlist(test_aE4$Predict_en)
+test_aE4$Predict_en <- as.numeric(test_aE4$Predict_en)
+
+# ---------------------------------------CASAS----------------------------------------- #
+
+elasNet_recipe_c <- 
+  recipe(formula =lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+         + Longitud + Latitud + Año + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_cE4) %>% 
+  step_interact(terms = ~ M2_por_Habitacion:Terraza + M2_por_Habitacion:Garaje) %>% 
+  step_novel(all_nominal_predictors()) %>% 
+  step_dummy(all_nominal_predictors()) %>% 
+  step_zv(all_predictors()) %>% 
+  step_normalize(Habitaciones, Habitaciones2, Baños, M2_por_Habitacion)
+
+elasNet_spec_c <- 
+  linear_reg(penalty = tune(), mixture = 0.5) %>%
+  set_mode("regression") %>%
+  set_engine("glmnet") 
+
+elasNet_c_workflow <- workflow() %>%
+  add_recipe(elasNet_recipe_c) %>%
+  add_model(elasNet_spec_c)
+
+# Generar una cuadrícula de valores de penalización
+penalty_grid_en_c <- grid_regular(penalty(range = c(-2, 2)), levels = 50)
+
+# Hiperparámetros utilizando tune_grid
+tune_res_en_c <- tune_grid(elasNet_c_workflow, resamples = train_cE4_fold, grid = penalty_grid_en_c, metrics = metric_set(rmse))
+autoplot(tune_res_en_c)
+
+best_penalty_en_c <- select_best(tune_res_en_c, metric = "rmse")
+elasNet_final_c <- finalize_workflow(elasNet_c_workflow, best_penalty_en_c)
+elasNet_c <- fit(elasNet_final_c, data = train_casas_E4)
+test_cE4$Predict_en <- predict(elasNet_c, new_data = test_cE4)
+test_cE4$Predict_en <- unlist(test_cE4$Predict_en)
+test_cE4$Predict_en <- as.numeric(test_cE4$Predict_en)
+
+
+# ------------------------------------Precios Predicciones Elastic Net-------------------------- #
+Pred_casa_en_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_en))
+colnames(Pred_casa_en_4) <- c("property_id", "Fecha", "Precio_Pred_Elastic_Net")
+Pred_apart_en_4<- data.frame(test_aE4$property_id, test_aE4$Fecha, exp(test_aE4$Predict_en))
+colnames(Pred_apart_en_4) <- c("property_id", "Fecha", "Precio_Pred_Elastic_Net")
+Pred_en_4 <- rbind(Pred_casa_en_4, Pred_apart_en_4)
+
+Precios_Prod_en <- aggregate(Pred_en_4$Precio, by = list(Pred_en_4$Fecha), FUN = mean)
+colnames(Precios_Prod_en) <- c("Fecha", "Precio_Promedio")
+Precios_Prod_en$Tipo <- "Predicción"
+
+
+g_en <- ggplot() +
+  geom_line(data = Precios_Prod_4, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
+  geom_line(data = Precios_Prod_en, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio Elastic Net",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_en
+
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA OLS-------------------------------# 
+
+Pred_casas_ols4 <- data.frame(test_casas1$property_id, exp(predict(Reg1.3, new_data = test_casas1)))
+colnames(Pred_casas_ols4) <- c("property_id", "Precio_Pred_ols1")
+Pred_apart_ols4 <- data.frame(test_apart1$property_id, exp(predict(Reg2.3, new_data = test_apart1)))
+colnames(Pred_apart_ols4) <- c("property_id", "Precio_Pred_ols1")
+Pred_ols_fm4 <- rbind(Pred_casas_ols4, Pred_apart_ols4)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_ols1.csv"  
+#write.csv(x = Pred_ols_fm4,
+#file = paste0(tabla_pronost, 'Pred_ols1.csv'),
+# row.names = FALSE)
+
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA RIDGE-----------------------------# 
+
+Pred_casas_rgd4 <- data.frame(test_casas1$property_id, exp(predict(Ridge_c, new_data = test_casas1)))
+colnames(Pred_casas_rgd4) <- c("property_id", "Precio_Pred_rgd")
+Pred_apart_rgd4 <- data.frame(test_apart1$property_id, exp(predict(Ridge_a, new_data = test_apart1)))
+colnames(Pred_apart_rgd4) <- c("property_id", "Precio_Pred_rgd")
+Pred_rgd_fm4 <- rbind(Pred_casas_rgd4, Pred_apart_rgd4)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_rgd1.csv"  
+#write.csv(x = Pred_rgd_fm4,
+#file = paste0(tabla_pronost, 'Pred_rgd1.csv'),
+# row.names = FALSE)
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA LASSO-----------------------------# 
+
+Pred_casas_ls4 <- data.frame(test_casas1$property_id, exp(predict(Lasso_c,  new_data = test_casas1)))
+colnames(Pred_casas_ls4) <- c("property_id", "Precio_Pred_ls")
+Pred_apart_ls4 <- data.frame(test_apart1$property_id, exp(predict(Lasso_a, new_data = test_apart1)))
+colnames(Pred_apart_ls4) <- c("property_id", "Precio_Pred_ls")
+Pred_ls_fm4 <- rbind(Pred_casas_ls4, Pred_apart_ls4)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_ls1.csv"  
+#write.csv(x = Pred_ls_fm4,
+#file = paste0(tabla_pronost, 'Pred_ls.csv'),
+#row.names = FALSE)
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA ELASTIC NET-----------------------------# 
+
+Pred_casas_en4 <- data.frame(test_casas1$property_id, exp(predict(elasNet_c, new_data = test_casas1)))
+colnames(Pred_casas_en4) <- c("property_id", "Precio_Pred_en")
+Pred_apart_en4 <- data.frame(test_apart1$property_id, exp(predict(elasNet_a, new_data = test_apart1)))
+colnames(Pred_apart_en4) <- c("property_id", "Precio_Pred_en")
+Pred_en_fm4 <- rbind(Pred_casas_en4, Pred_apart_en4)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_en1.csv"  
+#write.csv(x = Pred_en_fm4,
+#  file = paste0(tabla_pronost, 'Pred_en.csv'),
+# row.names = FALSE)
+
+
+# -----------------------------ESTIMACION CON EL METODO BOOSTING------------------------------------- #
+# ----------------------------------------------APARTAMENTOS ----------------------------------------- #
+
+set.seed(123)
+#p_load("caret")
+#p_load("bst")
+fitControl<-trainControl(method ="cv", number=5)
+
+tree_boosted_a <- train(
+  lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+  + Longitud + Latitud + Año + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_aE4,
+  method = "bstTree",
+  trControl = fitControl,
+  tuneGrid=expand.grid(
+    mstop = c(500), #Boosting Iterations (M)
+    maxdepth = c(3), # Max Tree Depth (d)
+    nu = c(0.01)) # Shrinkage (lambda)
+)
+
+tree_boosted_a
+
+test_aE4$Predict_bst<-predict(tree_boosted_a,newdata=test_aE4)
+
+# ----------------------------------------------CASAS ----------------------------------------- #
+
+set.seed(123)
+tree_boosted_c <- train(
+  lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+  + Longitud + Latitud + Año + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_cE4,
+  method = "bstTree",
+  trControl = fitControl,
+  tuneGrid=expand.grid(
+    mstop = c(500), #Boosting Iterations (M)
+    maxdepth = c(3), # Max Tree Depth (d)
+    nu = c(0.01)) # Shrinkage (lambda)
+)
+
+tree_boosted_c
+
+test_cE4$Predict_bst<-predict(tree_boosted_c,newdata=test_cE4)
+
+Pred_casa_bst_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_bst))
+colnames(Pred_casa_bst_4) <- c("property_id", "Fecha", "Precio")
+Pred_apart_bst_4<- data.frame(test_aE4$property_id, test_aE4$Fecha, exp(test_aE4$Predict_bst))
+colnames(Pred_apart_bst_4) <- c("property_id", "Fecha", "Precio")
+Pred_bst_4 <- rbind(Pred_casa_bst_4, Pred_apart_bst_4)
+
+Precios_Prod_bst <- aggregate(Pred_bst_4$Precio, by = list(Pred_bst_4$Fecha), FUN = mean)
+colnames(Precios_Prod_bst) <- c("Fecha", "Precio_Promedio")
+Precios_Prod_bst$Tipo <- "Predicción"
+
+
+g_bst <- ggplot() +
+  geom_line(data = Precios_Prod_4, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
+  geom_line(data = Precios_Prod_bst, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio Boosting",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+  )
+g_bst
+
+
+test_cE4$Predict_bst<-predict(tree_boosted_c,newdata=test_cE4)
+
+
+# --------------------ERRORES DE PREDICCION FUERA DE MUESTRA-------------------------- #
+
+test_E4 <- rbind(test_aE4, test_cE4)
+
+MAE_1 <- mean(abs(exp(test_E4$Predict_ols) - test_E4$Precio))
+MAE_2 <- mean(abs(exp(test_E4$Predict_rgd) - test_E4$Precio))
+MAE_3 <- mean(abs(exp(test_E4$Predict_ls) - test_E4$Precio))
+MAE_4 <- mean(abs(exp(test_E4$Predict_en) - test_E4$Precio))
+MAE_5 <- mean(abs(exp(test_E4$Predict_bst) - test_E4$Precio))
+
+# Luego puedes almacenar los resultados en un dataframe
+Errores_MAE <- data.frame(
+  Modelo = c("OLS", "Ridge", "Lasso", "Elastic_Net","Boosting"),
+  MAE = c(MAE_1, MAE_2, MAE_3, MAE_4, MAE_5)
+)
+
+print(Errores_MAE)
+
+##---------------- Predict Boosting Estrato 4------------------------
+# APARTAMENTOS
+tree_boosted_at <- train(
+  lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+  + Longitud + Latitud + Año + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_apart_E4,
+  method = "bstTree",
+  trControl = fitControl,
+  tuneGrid=expand.grid(
+    mstop = c(500), #Boosting Iterations (M)
+    maxdepth = c(3), # Max Tree Depth (d)
+    nu = c(0.01)) # Shrinkage (lambda)
+)
+tree_boosted_at
+
+test_apart_4$Predict_bst<-predict(tree_boosted_at, newdata=test_apart_4)
+
+# CASAS
+tree_boosted_ct <- train(
+  lPrecio ~ Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Terraza + Garaje + Sala_BBQ + Piscina + Gimnasio + Chimenea + Seguridad + Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos 
+  + Dist_C_Comerc + + Longitud + Latitud + Año + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_casas_E4,
+  method = "bstTree",
+  trControl = fitControl,
+  tuneGrid=expand.grid(
+    mstop = c(500), #Boosting Iterations (M)
+    maxdepth = c(3), # Max Tree Depth (d)
+    nu = c(0.01)) # Shrinkage (lambda)
+)
+tree_boosted_ct
+
+test_casas_4$Predict_bst<-predict(tree_boosted_ct, newdata=test_casas_4)
+
+# ------------------------------PRONOSTICOS FUERA DE MUESTRA ELASTIC NET-----------------------------# 
+
+Pred_casas_bst4 <- data.frame(test_casas_4$property_id, exp(test_casas_4$Predict_bst))
+colnames(Pred_casas_bst4) <- c("property_id", "Precio_Pred_bst")
+Pred_apart_bst4 <- data.frame(test_apart_4$property_id, exp(test_apart_4$Predict_bst))
+colnames(Pred_apart_bst4) <- c("property_id", "Precio_Pred_bst")
+Pred_bst_fm4 <- rbind(Pred_casas_bst4, Pred_apart_bst4)
+#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_bst.csv"  
+#write.csv(x = Pred_bst_fm4,
+# file = paste0(tabla_pronost, 'Pred_bst.csv'),
+# row.names = FALSE)
 

@@ -488,6 +488,15 @@ leaflet() %>%
              radius = train$precio_por_mt2_sc * 10,
              popup = html)
 
+
+# Ahora solo nos quedaremos con las observaciones que efectivamente están dentro de Cali y no están mal georeferenciadas
+limites <- getbb("Bogotá, Colombia")
+train <- train %>%
+  filter(
+    between(lon, limites[1, "min"], limites[1, "max"]) & 
+      between(lat, limites[2, "min"], limites[2, "max"])
+  )
+
 train$bedrooms <- ifelse(train$bedrooms == 0, train$rooms, train$bedrooms)
 mediana_bedrooms <- median(train$bedrooms, na.rm = TRUE)
 train$bedrooms <- ifelse(is.na(train$bedrooms), mediana_bedrooms, train$bedrooms)
@@ -883,9 +892,9 @@ Rango_precios_Apart <- Precio_Aparts  %>%
             Part_Porc = (Observaciones / 28093 * 100))
 colnames(Rango_precios_Apart) <- c("Rango de Precios", "Estrato","Habitaciones","Baños", "Area", "Observaciones","Part. %" )
 
-Tabla_Rangos_a <- as.data.frame(Rango_precios_Apart)
-Tabla_Ra_ <- "C:/Output R/Taller 2/Taller_2/document/Tabla_Ra.xlsx"
-write_xlsx(Tabla_Rangos_a, path = Tabla_Ra_)
+#Tabla_Rangos_a <- as.data.frame(Rango_precios_Apart)
+#Tabla_Ra_ <- "C:/Output R/Taller 2/Taller_2/document/Tabla_Ra.xlsx"
+#write_xlsx(Tabla_Rangos_a, path = Tabla_Ra_)
 
 # ---------------------Rango de Precios y Distancias-----------------------------------------------------------------------
 
@@ -1741,12 +1750,51 @@ Model1 <- lm(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + Latitud
 Model1_stargazer <- stargazer(Model1, type="text", omit.stat=c("ser","f","adj.rsq"))
 Model1_stargazer <- as.data.frame(Model1_stargazer)
 train_casas1$Pred_Precios <- predict(Model1, newdata = train_casas1)
+
+Media_precio_casas <- mean(train_casas1$Precio)
+
+Coef <- Model1$coefficients
+Sig_Ec.c <- round((exp(Coef)/Media_precio_casas)*100, digits = 3)
+Sig_Ec.c <- as.data.frame(Sig_Ec.c)
+Sig_Ec.c
+
+
+# ----------------------------------Grafica casas------------------------------------------#
+
+lPrecios_M_ols <- aggregate(train_casas1$lPrecio, by = list(train_casas1$Fecha), FUN = mean)
+colnames(lPrecios_M_ols) <- c("Fecha", "Precio_Promedio_Casas")
+lPrecios_M_ols$Tipo <- "Observado"
+
+lPrec_Pred_M_ols <- aggregate(train_casas1$Pred_Precios, by = list(train_casas1$Fecha), FUN = mean)
+colnames(lPrec_Pred_M_ols) <- c("Fecha", "Precio_Promedio_Casas")
+lPrec_Pred_M_ols$Tipo <- "Predicción"
+
+
+g_ols <- ggplot() +
+  geom_line(data = lPrecios_M_ols, aes(x = Fecha, y = Precio_Promedio_Casas, color = "Observado"), size = 1) +
+  geom_line(data = lPrec_Pred_M_ols, aes(x = Fecha, y = Precio_Promedio_Casas, color = "Predicción"), size = 1) +
+  labs(
+    title = "Evolución Precios Promedio de Casas OLS",
+    x = "Fecha",
+    y = "Precio Promedio"
+  ) +
+  scale_color_manual(values = c("Observado" = "blue", "Predicción" = "red")) +
+  guides(color = guide_legend(title = NULL)) + 
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.line = element_line(color = "gray"),
+    panel.background = element_rect(fill = "transparent", color = NA),
+    panel.grid = element_line(color = "gray")
+    legend.position = "bottom"
+  )
+g_ols
+
 #Rega <- "C:/Output R/Taller 2/Taller_2/document/Mod_stargazer.xlsx"
 #write_xlsx(Model1_stargazer, path = Rega )
 
 
-Y=train_casas1$Pred_Precios
-X = as.matrix(train_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños","Latitud", "Longitud","Año", "M2_por_Habitacion", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Sala_BBQ_terraza","Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+#Y=train_casas1$Pred_Precios
+#X = as.matrix(train_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños","Latitud", "Longitud","Año", "M2_por_Habitacion", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Sala_BBQ_terraza","Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
 
 # -------------------------------MODELOS DE RIDGE CASAS--------------------------------# 
 
@@ -1768,6 +1816,7 @@ lambda_optimo
 Model2 <- glmnet(X, y, alpha = 0, lambda = lambda_optimo)
 train_casas1$Pred_Precios_rg <- predict(Model2, s = lambda_optimo, newx = X)
 coef(Model2)
+
 
 
 # -------------------------------MODELOS LASSO CASAS--------------------------------# 
@@ -1807,14 +1856,13 @@ Model4 <- glmnet(X3, y, alpha = 0.5, lambda = lambda_optimo_en)
 train_casas1$Pred_Precios_en <- predict(Model4, s = lambda_optimo_en, newx = X3)
 coef(Model4)
 
-#Tabla_train_casas <- "C:/Output R/Taller 2/Taller_2/tabla_train_casas.xlsx"  
-#write_xlsx(train_casas1, Tabla_train_casas)
+# Tabla_train_casas <- "C:/Output R/Taller 2/Taller_2/tabla_train_casas.xlsx"  
+# write_xlsx(train_casas1, Tabla_train_casas)
 
 
 # -------------------------------CREACION DE OTRAS VARIABLES-------------------------- # 
 train_apart1$M2_por_Habitacion<- train_apart1$Area/train_apart1$Habitaciones
 train_apart1$Habitaciones2<- train_apart1$Habitaciones^2
-train_apart1$Estrato2<- train_apart1$Estrato^2
 train_apart1$M2_por_Habitacion_Garaje <- train_apart1$M2_por_Habitacion * train_apart1$Garaje
 train_apart1$Sala_BBQ_terraza <- train_apart1$Sala_BBQ * train_apart1$Terraza
 train_apart1$year <- as.character(train_apart1$year)
@@ -1831,11 +1879,11 @@ train_apart1$Año <- as.numeric(train_apart1$year)
 
 # -------------------------------MODELOS DE REGRESION LINEAL APARTAMENTOS----------------------------# 
 
-Model5 <- lm(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Latitud + Longitud + Año + Terraza + Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Año + 
+Model5 <- lm(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_Habitacion + Latitud + Longitud + Terraza + Garaje + Sala_BBQ + Gimnasio + Chimenea + Seguridad + Año + 
                Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_apart1)
 Model5_stargazer <- stargazer(Model5, type="text", omit.stat=c("ser","f","adj.rsq"))
 Model5_stargazer <- as.data.frame(Model5_stargazer)
-train_apart1$Pred_Precios1 <- predict(Model5, newdata = train_apart1)
+train_apart1$Pred_Precios <- predict(Model5, newdata = train_apart1)
 #Regc <- "C:/Output R/Taller 2/Taller_2/document/Modc_stargazer.xlsx"
 #write_xlsx(Model5_stargazer, path = Regc )
 
@@ -1854,7 +1902,7 @@ colnames(Precios_Prod_t) <- c("Fecha", "Precio_Promedio")
 Precios_Prod_t$Tipo <- "Observado"
 
 
-Pred_apart_ols_t <- data.frame(train_apart1$property_id, train_apart1$Fecha, exp(train_apart1$Pred_Precios1))
+Pred_apart_ols_t <- data.frame(train_apart1$property_id, train_apart1$Fecha, exp(train_apart1$Pred_Precios))
 colnames(Pred_apart_ols_t) <- c("property_id", "Fecha", "Precio")
 Pred_casas_ols_t <- data.frame(train_casas1$property_id,train_casas1$Fecha, exp(train_casas1$Pred_Precios))
 colnames(Pred_casas_ols_t) <- c("property_id", "Fecha", "Precio")
@@ -1903,12 +1951,12 @@ lambda_opt_apart
 
 # Modelo con el valor óptimo de lambda
 Model6 <- glmnet(X1, y1, alpha = 0, lambda = lambda_opt_apart)
-train_apart1$Pred_Precios_rg1 <- predict(Model6, s = lambda_opt_apart, newx = X1)
+train_apart1$Pred_Precios_rg <- predict(Model6, s = lambda_opt_apart, newx = X1)
 coef(Model6)
 
 # ------------------------------------Grafica Predicciones Ridge-------------------------- #
 
-Pred_apart_rgd_t <- data.frame(train_apart1$property_id, train_apart1$Fecha, exp(train_apart1$Pred_Precios_rg1))
+Pred_apart_rgd_t <- data.frame(train_apart1$property_id, train_apart1$Fecha, exp(train_apart1$Pred_Precios_rg))
 colnames(Pred_apart_rgd_t) <- c("property_id", "Fecha", "Precio")
 Pred_casas_rgd_t <- data.frame(train_casas1$property_id,train_casas1$Fecha, exp(train_casas1$Pred_Precios_rg))
 colnames(Pred_casas_rgd_t) <- c("property_id", "Fecha", "Precio")
@@ -1955,13 +2003,13 @@ lambda_opt_ls_apart
 
 # Ajustar el modelo Lasso con el valor óptimo de lambda
 Model7 <- glmnet(X2, y1, alpha = 1, lambda = lambda_opt_ls_apart)
-train_apart1$Pred_Precios_ls1 <- predict(Model7, s = lambda_opt_ls_apart, newx = X2)
+train_apart1$Pred_Precios_ls <- predict(Model7, s = lambda_opt_ls_apart, newx = X2)
 coef(Model7)
 
 
 # ------------------------------------Grafica Predicciones Lasso-------------------------- #
 
-Pred_apart_ls_t <- data.frame(train_apart1$property_id, train_apart1$Fecha, exp(train_apart1$Pred_Precios_ls1))
+Pred_apart_ls_t <- data.frame(train_apart1$property_id, train_apart1$Fecha, exp(train_apart1$Pred_Precios_ls))
 colnames(Pred_apart_ls_t) <- c("property_id", "Fecha", "Precio")
 Pred_casas_ls_t <- data.frame(train_casas1$property_id,train_casas1$Fecha, exp(train_casas1$Pred_Precios_ls))
 colnames(Pred_casas_ls_t) <- c("property_id", "Fecha", "Precio")
@@ -2005,12 +2053,12 @@ lambda_opt_en_apart
 
 # Ajustar el modelo Elastic Net con el valor óptimo de lambda
 Model8 <- glmnet(X4, y1, alpha = 0.5, lambda = lambda_opt_en_apart)
-train_apart1$Pred_Precios_en1 <- predict(Model8, s = lambda_opt_en_apart, newx = X4)
+train_apart1$Pred_Precios_en <- predict(Model8, s = lambda_opt_en_apart, newx = X4)
 coef(Model8)
 
 # ------------------------------------Grafica Predicciones Elastic Net-------------------------- #
 
-Pred_apart_en_t <- data.frame(train_apart1$property_id, train_apart1$Fecha, exp(train_apart1$Pred_Precios_en1))
+Pred_apart_en_t <- data.frame(train_apart1$property_id, train_apart1$Fecha, exp(train_apart1$Pred_Precios_en))
 colnames(Pred_apart_en_t) <- c("property_id", "Fecha", "Precio")
 Pred_casas_en_t <- data.frame(train_casas1$property_id,train_casas1$Fecha, exp(train_casas1$Pred_Precios_en))
 colnames(Pred_casas_en_t) <- c("property_id", "Fecha", "Precio")
@@ -2133,63 +2181,19 @@ Pred_en_fm <- rbind(Pred_casas_en, Pred_apart_en)
 # ------------------------------ERRORES DENTRO DE MUESTRA MSE----------------------------------------# 
 # -------------------------------------------------------------------------------------------------- #
 
-Pred_casa_olsc <- data.frame(train_casas1$property_id, exp(predict(Model1, newdata = train_casas1)))
-colnames(Pred_casa_olsc) <- c("property_id", "Pred_ols")
-Pred_apart_olsa <- data.frame(train_apart1$property_id, exp(predict(Model5, newdata = train_apart1)))
-colnames(Pred_apart_olsa) <- c("property_id", "Pred_ols")
-Pred_ols <- rbind(Pred_casa_olsc, Pred_apart_olsa)
+train_1 <- rbind(train_apart1, train_casas1)
 
-Xc_train <- as.matrix(train_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "Area","Longitud", "Latitud","Año", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
-Xa_train <- as.matrix(train_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños","M2_por_Habitacion", "Longitud", "Latitud","Año","M2_por_Habitacion_Garaje", "Terraza", "Garaje", "Gimnasio", "Chimenea", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
+MAE_1t <- mean(abs(exp(train_1$Pred_Precios) - train_1$Precio))
+MAE_2t <- mean(abs(exp(train_1$Pred_Precios_rg) - train_1$Precio))
+MAE_3t <- mean(abs(exp(train_1$Pred_Precios_ls) - train_1$Precio))
+MAE_4t <- mean(abs(exp(train_1$Pred_Precios_en) - train_1$Precio))
 
-Pred_casa_rgd <- data.frame(train_casas1$property_id, exp(predict(Model2, s = lambda_optimo, newx = Xc_train)))
-colnames(Pred_casa_rgd) <- c("property_id", "Pred_rgd")
-Pred_apart_rgd <- data.frame(train_apart1$property_id, exp(predict(Model6, s = lambda_opt_apart, newx= Xa_train)))
-colnames(Pred_apart_rgd) <- c("property_id", "Pred_rgd")
-Pred_rgd <- rbind(Pred_casa_rgd, Pred_apart_rgd)
-
-Xc1_train <- as.matrix(train_casas1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion","Longitud", "Latitud","Año", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
-Xa1_train <- as.matrix(train_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion", "Longitud", "Latitud","Año","Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
-
-
-Pred_casa_lss <- data.frame(train_casas1$property_id, exp(predict(Model3,s = lambda_optimo_lasso, newx = Xc1_train)))
-colnames(Pred_casa_lss) <- c("property_id", "Pred_lss")
-Pred_apart_lss <- data.frame(train_apart1$property_id, exp(predict(Model7, s = lambda_opt_ls_apart, newx = Xa1_train)))
-colnames(Pred_apart_lss) <- c("property_id", "Pred_lss")
-Pred_lss <- rbind(Pred_casa_lss, Pred_apart_lss)
-
-Xc2_train <- as.matrix(train_casas1[,  c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "M2_por_Habitacion","Longitud", "Latitud","Año","M2_por_Habitacion_Garaje", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
-Xa2_train <- as.matrix(train_apart1[, c("Estrato", "Habitaciones", "Habitaciones2", "Baños", "Area","Longitud", "Latitud","Año", "Terraza", "Garaje", "Sala_BBQ", "Gimnasio", "Chimenea", "Seguridad", "Dist_Parques", "Dist_Transp_Publico", "Dist_Establecimientos", "Dist_C_Comerc", "Dist_Centros_Educ", "Dist_Restaurantes", "Dist_Bancos")])
-
-
-Pred_casa_eln <- data.frame(train_casas1$property_id, exp(predict(Model4, s = lambda_optimo_en, newx = Xc2_train)))
-colnames(Pred_casa_eln) <- c("property_id", "Pred_eln")
-Pred_apart_eln <- data.frame(train_apart1$property_id, exp(predict(Model8, s = lambda_opt_en_apart, newx= Xa2_train )))
-colnames(Pred_apart_eln) <- c("property_id", "Pred_eln")
-Pred_eln <- rbind(Pred_casa_eln, Pred_apart_eln)
-
-
-Precios_Obs <- train[, c("property_id", "Precio")]
-# Combinar los precios reales en un único conjunto
-Datos_1t <- merge(Pred_ols, Precios_Obs, by = "property_id")
-Datos_2t <- merge(Pred_rgd, Precios_Obs, by = "property_id")
-Datos_3t <- merge(Pred_lss, Precios_Obs, by = "property_id")
-Datos_4t <- merge(Pred_eln, Precios_Obs, by = "property_id")
-
-
-MAE_1t <- abs(mean((Datos_1t$Pred_ols - Datos_1t$Precio)))
-MAE_2t  <- abs(mean((Datos_2t$Pred_rgd - Datos_2t$Precio)))
-MAE_3t  <- abs(mean((Datos_3t$Pred_lss - Datos_3t$Precio)))
-MAE_4t  <- abs(mean((Datos_4t$Pred_eln - Datos_4t$Precio)))
 
 # Luego puedes almacenar los resultados en un dataframe
-errores_mae <- data.frame(
-  Modelo = c("OLS", "Ridge", "Lasso", "Elastic_Net"),
-  MAE = c(MAE_1t, MAE_2t, MAE_3t, MAE_4t)
-)
-
-print(errores_mae)
-
+Errores_MAEt <- data.frame(
+  Modelos = c("OLS", "Ridge", "Lasso", "Elastic_Net"),
+  MAE = c(MAE_1t, MAE_2t, MAE_3t, MAE_4t))
+Errores_MAEt 
 
 
 #-----------Elaboración de Modelos para pronosticar el Precio de las Casas y Apartamentos-------------------##
@@ -2767,9 +2771,9 @@ g_en
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA OLS-------------------------------# 
 
-Pred_casas_ols4 <- data.frame(test_casas1$property_id, exp(predict(Reg1.3_, new_data = test_casas1)))
+Pred_casas_ols4 <- data.frame(test_casas1$property_id, exp(predict(Reg1.3, new_data = test_casas1)))
 colnames(Pred_casas_ols4) <- c("property_id", "Precio_Pred_ols1")
-Pred_apart_ols4 <- data.frame(test_apart1$property_id, exp(predict(Reg2.3_, new_data = test_apart1)))
+Pred_apart_ols4 <- data.frame(test_apart1$property_id, exp(predict(Reg2.3, new_data = test_apart1)))
 colnames(Pred_apart_ols4) <- c("property_id", "Precio_Pred_ols1")
 Pred_ols_fm4 <- rbind(Pred_casas_ols4, Pred_apart_ols4)
 #tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_ols1.csv"  
