@@ -737,7 +737,7 @@ graph_loc <- ggplot(train_porcentaje, aes(x = localidad, y = cantidad)) +
   geom_col(linewidth = 1.5, fill = "blue") +
   geom_text(aes(label = paste0(round(porcentaje), "%")), 
             position = position_stack(vjust = 1.1)) +
-  labs(title = "Grafica 1: Distribución de Propiedades por Localidad",
+  labs(title = "Grafica 2: Distribución de Propiedades por Localidad",
        x = "Localidad",
        y = "Cantidad") +
   coord_flip() +
@@ -777,6 +777,7 @@ promedio_distancias <- distant %>%
 
 print(promedio_distancias)
 
+
 otra_localidad <- sum(train$localidad == "Otra Localidad")
 print(otra_localidad)
 
@@ -799,9 +800,7 @@ m <- m %>%
 
 # Agregar etiquetas de localidades
 m <- m %>%
-  addMarkers(data = train, lng = ~lon, lat = ~lat, label = ~localidad)
-
-# Mostrar el mapa
+  addMarkers(data = train, lng = ~lon, lat = ~lat)
 m
 
 
@@ -1148,6 +1147,7 @@ stargazer(data.frame(Tabla_Stat_D), header=FALSE, type='text',title="Estadistica
 #--------------------------------------------- CHAPINERO-----------------------------------------------------#
 ###################################################TEST########################################################
 
+
 test %>%
   summarise_all(~sum(is.na(.))) %>% transpose()
 
@@ -1452,6 +1452,18 @@ test_filtrado_bogota <- test %>%
 test <- test %>%
   mutate(color = case_when(property_type == "Apartamento" ~ "#2A9D8F",
                            property_type == "Casa" ~ "#F4A261"))
+
+
+
+m1 <- leaflet() %>%
+  addTiles() %>%
+  setView(lng = -74.056451, lat = 4.638163, zoom = 14)  
+m1 <- m %>%
+  addCircles(data =test, lng = ~lon, lat = ~lat, radius = 100, color = "blue")
+
+m <- m %>%
+  addMarkers(data = test, lng = ~lon, lat = ~lat)
+m1
 
 # Encontrar el centro del mapa
 latitud_central <- mean(test$lat)
@@ -1775,8 +1787,8 @@ Model1 <- lm(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + Latitud
                Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_casas_t)
 Model1_stargazer <- stargazer(Model1, type="text", omit.stat=c("ser","f","adj.rsq"))
 Model1_stargazer <- as.data.frame(Model1_stargazer)
-train_casas_t$Pred_Precios <- predict(Model1, newdata = train_casas_t)
-test_casas_t$Pred_Precios <- predict(Model1, newdata = test_casas_t)
+train_casas_t$Pred_Precios <- exp(predict(Model1, newdata = train_casas_t))
+test_casas_t$Pred_Precios <- exp(predict(Model1, newdata = test_casas_t))
 
 Media_precio_casas <- mean(train_casas_t$Precio)
 
@@ -1903,18 +1915,18 @@ Precio_apart_t <- data.frame(train_apart_t$property_id, train_apart_t$Fecha, tra
 colnames(Precio_apart_t) <- c("property_id", "Fecha", "Precio")
 Precio_casa_t <- data.frame(train_casas_t$property_id,train_casas_t$Fecha, train_casas_t$Precio)
 colnames(Precio_casa_t) <- c("property_id", "Fecha","Precio")
-Precios_t <- rbind(Precio_apart_t, Precio_apart_t)
+Precios_t <- rbind(Precio_apart_t, Precio_casa_t)
 
 Precios_Prod_t <- aggregate(Precios_t$Precio, by = list(Precios_t$Fecha), FUN = mean)
 colnames(Precios_Prod_t) <- c("Fecha", "Precio_Promedio")
 Precios_Prod_t$Tipo <- "Observado"
 
 
-Pred_apart_ols_t <- data.frame(train_apart_t$property_id, train_apart_t$Fecha, exp(train_apart_t$Pred_Precios))
+Pred_apart_ols_t <- data.frame(train_apart_t$property_id, train_apart_t$Fecha, train_apart_t$Pred_Precios)
 colnames(Pred_apart_ols_t) <- c("property_id", "Fecha", "Precio")
-Pred_casas_ols_t <- data.frame(train_casas_t$property_id,train_casas_t$Fecha, exp(train_casas_t$Pred_Precios))
+Pred_casas_ols_t <- data.frame(train_casas_t$property_id,train_casas_t$Fecha, train_casas_t$Pred_Precios)
 colnames(Pred_casas_ols_t) <- c("property_id", "Fecha", "Precio")
-Pred_ols_t <- rbind(Pred_casas_ols_t, Pred_apart_ols_t)
+Pred_ols_t <- rbind(Pred_apart_ols_t,Pred_casas_ols_t)
 
 Pred_ols_t  <- aggregate(Pred_ols_t$Precio, by = list(Pred_ols_t$Fecha), FUN = mean)
 colnames(Pred_ols_t) <- c("Fecha", "Precio_Promedio")
@@ -1925,7 +1937,7 @@ g_ols <- ggplot() +
   geom_line(data = Precios_Prod_t, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
   geom_line(data = Pred_ols_t, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
   labs(
-    title = "Estimación Estrato 4:Precios Promedio vs Estimación OLS",
+    title = "Grafica 7:Precios Promedio vs Estimación OLS",
     x = "Fecha",
     y = "Precio Promedio"
   ) +
@@ -1982,7 +1994,7 @@ g_rgd <- ggplot() +
   geom_line(data = Precios_Prod_t, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
   geom_line(data = Pred_rgd_t, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
   labs(
-    title = "Estimación Estrato 4:Precios Promedio vs Estimación Ridge",
+    title = "Grafica 15:Precios Promedio vs Estimación Ridge",
     x = "Fecha",
     y = "Precio Promedio"
   ) +
@@ -2037,7 +2049,7 @@ g_ls <- ggplot() +
   geom_line(data = Precios_Prod_t, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
   geom_line(data = Pred_ls_t, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
   labs(
-    title = "Precios Promedio vs Estimación Lasso",
+    title = "Grafica 11:Precios Promedio vs Estimación Lasso",
     x = "Fecha",
     y = "Precio Promedio"
   ) +
@@ -2076,7 +2088,7 @@ coef(Model8)
 
 Pred_apart_en_t <- data.frame(train_apart_t$property_id, train_apart_t$Fecha, exp(train_apart_t$Pred_Precios_en))
 colnames(Pred_apart_en_t) <- c("property_id", "Fecha", "Precio")
-Pred_casas_en_t <- data.frame(train_casas_t$property_id,train_casas_t$Fecha, exp(train_casas_t$Pred_Precios_en))
+Pred_casas_en_t <- data.frame(train_casas_t$property_id,train_casas_t$Fecha, train_casas_t$Pred_Precios_en)
 colnames(Pred_casas_en_t) <- c("property_id", "Fecha", "Precio")
 Pred_en_t <- rbind(Pred_casas_en_t, Pred_apart_en_t)
 
@@ -2089,7 +2101,7 @@ g_en <- ggplot() +
   geom_line(data = Precios_Prod_t, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
   geom_line(data = Pred_en_t, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
   labs(
-    title = "Precios Promedio vs Estimación Elastic Net",
+    title = "Grafica 17:Precios Promedio vs Estimación Elastic Net",
     x = "Fecha",
     y = "Precio Promedio"
   ) +
@@ -2163,7 +2175,7 @@ g_bst <- ggplot() +
   geom_line(data = Precios_Prod_t, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
   geom_line(data = Pred_bst_t, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
   labs(
-    title = "Precios Promedio vs Estimación Boosting",
+    title = "Grafica 19:Precios Promedio vs Estimación Boosting",
     x = "Fecha",
     y = "Precio Promedio"
   ) +
@@ -2497,7 +2509,7 @@ g_ols <- ggplot() +
   geom_line(data = Precios_Prod_4, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
   geom_line(data = Precios_Prod_ols, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
   labs(
-    title = "Precios Promedio vs Estimación OLS",
+    title = "Grafica 8: Precios Promedio vs Estimación OLS",
     x = "Fecha",
     y = "Precio Promedio"
   ) +
@@ -2636,7 +2648,7 @@ g_rgd <- ggplot() +
   geom_line(data = Precios_Prod_4, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
   geom_line(data = Precios_Prod_rgd, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
   labs(
-    title = "Precios Promedio vs Estimación Ridge",
+    title = "Grafica 16:Precios Promedio vs Estimación Ridge",
     x = "Fecha",
     y = "Precio Promedio"
   ) +
@@ -2743,7 +2755,7 @@ g_ls <- ggplot() +
   geom_line(data = Precios_Prod_4, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
   geom_line(data = Precios_Prod_ls, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
   labs(
-    title = "Precios Promedio vs Estimación Lasso",
+    title = "Grafica 12:Precios Promedio vs Estimación Lasso",
     x = "Fecha",
     y = "Precio Promedio"
   ) +
@@ -2851,7 +2863,7 @@ g_en <- ggplot() +
   geom_line(data = Precios_Prod_4, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
   geom_line(data = Precios_Prod_en, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
   labs(
-    title = "Precios Promedio vs Estimación Elastic Net",
+    title = "Grafica 18:Precios Promedio vs Estimación Elastic Net",
     x = "Fecha",
     y = "Precio Promedio"
   ) +
@@ -2980,7 +2992,7 @@ g_bst <- ggplot() +
   geom_line(data = Precios_Prod_4, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
   geom_line(data = Precios_Prod_bst, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
   labs(
-    title = "Precios Promedio vs Estimación Boosting",
+    title = "Grafica 20:Precios Promedio vs Estimación Boosting",
     x = "Fecha",
     y = "Precio Promedio"
   ) +
