@@ -12,8 +12,7 @@ En este sección se encuentran dos scripts, el primero incluye la importacion de
 Esta carpeta contiene el documento en word y en pdf con las explicaciones y resultados de los ejercicios realizados en el código. 
 
 ### stores: 
-Esta carpeta contiene la base final utilizada para el trabajo, que proviene de un web scrapping realizado de la página: https://ignaciomsarmiento.
-github.io/GEIH2018 sample/. En esta base se utilizan datos de la Encuesta Integrada de Hogares (GEIH) del 2018 para Bogotá. Esta base contiene los datos después de una limpieza realizada en el script. 
+Esta carpeta contiene las predicciones realizadas segun las metodologias desarrolladas. 
 
 ### views:
 Esta carpeta contiene las tablas y los gráficos incluidos en el documento. 
