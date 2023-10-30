@@ -1,11 +1,12 @@
 # Problem Set
 
-En este repositorio se encuentra la solución al ejercicio presentado en el Problem Set 2 sobre la predicción de los precios de propiedades (casas y apartamentos. Este documento fue realizado por Celin Hernández y Merit Tejeda. 
+En este repositorio se encuentra la solución al ejercicio presentado en el Problem Set 2 sobre la predicción de los precios de propiedades (casas y apartamentos). Este documento fue realizado por Celin Hernández y Merit Tejeda. 
 
 ## Descripción de archivos
 
 ### script:
-Todo el desarrollo del taller se encuentra en este código, que está dividido por los puntos 1 a 5. Este código contiene los ejercicios realizados de regresiones, gráficas, tablas y demás pruebas. 
+En este sección se encuentran dos scripts, el primero incluye la importacion de la base de datos, depuración, construccion de variables y estimación de los modelos OLS, Lasso, Ridge, Elastic Net y Boosting. El script 2 con las bases ya depuradas se dividen conjuntos de datos para hacer mas pruebas y se estiman modelos de Ramdon Forest y Gradient Descent; y se realizaron mas pruebas para los modelos ols.
+
 
 ### document:
 Esta carpeta contiene el documento en word y en pdf con las explicaciones y resultados de los ejercicios realizados en el código. 
