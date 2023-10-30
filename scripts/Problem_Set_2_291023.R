@@ -9,10 +9,11 @@ install.packages("readxl")
 install.packages("readr")
 install.packages("pacman")
 install.packages("osmdata")
-#install.packages("leaflet")
-#install.packages("dplyr")
+install.packages("leaflet")
+install.packages("dplyr")
 install.packages("rgeos")
 install.packages("openxlsx")
+install.packages("tidyr")
 install.packages("ggplot2")
 install.packages("writexl")
 install.packages("geosphere")
@@ -21,34 +22,38 @@ install.packages("geopy")
 install.packages("stargazer")
 install.packages("zoo")
 install.packages("gridExtra")
-#install.packages("tidyverse")
+install.packages("tidyverse")
 install.packages("rvest")
 install.packages("sf")
 install.packages("glmnet")
-#install.packages("broom")
+install.packages("broom")
 install.packages("caret")
 install.packages("Matrix")
+install.packages('rgdal',repos="http://www.stats.ox.ac.uk/pub/RWin")
 library(osmdata)
-#library(leaflet)
+library(tidyr)
+library(leaflet)
 library(ggplot2)
 library(openxlsx)
 library(pacman)
 library(readxl)
-#library(dplyr)
+library(dplyr)
 library(writexl)
 library(geosphere)
 library(ggmap)
 library(stargazer)
 library(gridExtra)
 library(zoo)
-#library(tidyverse)
+library(tidyverse)
 library(rvest)
 library(sf)
 library(readr)
 library(glmnet)
-#library(broom)
+library(broom)
 library(caret)
 library(Matrix)
+
+
 
 # Cargar las librerías listadas e instalarlas en caso de ser necesario
 p_load(tidyverse, # Manipular dataframes
@@ -629,17 +634,6 @@ distancias_restaurantes_bares <- st_distance(train_sf, centroides_restaurantes_b
 dist_min_restaurantes_bares <- apply(distancias_restaurantes_bares, 1, min)
 train_sf$distancia_restaurantes_bares <- dist_min_restaurantes_bares
 
-# Crear un mapa de leaflet
-m <- leaflet() %>%
-  addTiles() %>%
-  setView(lng = mean(train$lon), lat = mean(train$lat), zoom = 12) %>%
-  addCircles(lng = train$lon, lat = train$lat, radius = 100, color = "blue")
-
-coordinates <- train %>% select(lon, lat)
-num_clusters <- 18
-clusters <- kmeans(coordinates, centers = num_clusters)
-train$cluster <- as.factor(clusters$cluster)
-
 
 distancias1 <- train_sf %>% select(32:37) %>% st_drop_geometry()
 distanciasp <- train1_sf %>% select(24) %>% st_drop_geometry()
@@ -729,6 +723,8 @@ train$localidad[train$distancia_puente_aranda < umbral_grados_puente_aranda] <- 
 
 # Elimina las columnas de distancia si ya no son necesarias
 train <- train %>% select(-distancia_santa_fe, -distancia_usaquen, -distancia_teusaquillo, -distancia_candelaria,-distancia_engativa,-distancia_suba,-distancia_bosa, -distancia_kennedy, -distancia_fontibon, -distancia_ciudad_bolivar,-distancia_antonio_narino, -distancia_usme,-distancia_barrios_unidos,-distancia_san_cristobal,-distancia_rafael_uribe, -distancia_los_martirez, -distancia_tunjuelito, -distancia_puente_aranda)
+# Supongamos que 'localidades_geojson' es el archivo GeoJSON que contiene los polígonos de las localidades
+
 
 train_porcentaje <- train %>%
   group_by(localidad) %>%
@@ -784,6 +780,27 @@ print(otra_localidad)
 
 # Unir las bases de datos por la columna "localidad"
 train <- merge(train, estrato, by = "localidad")
+
+
+# Cargar las librerías
+library(leaflet)
+library(dplyr)
+
+# Crear un mapa de Leaflet
+m <- leaflet() %>%
+  addTiles() %>%
+  setView(lng = -74.081749, lat = 4.609710, zoom = 11)  # Coordenadas del centro de Bogotá
+
+# Agregar círculos para las ubicaciones
+m <- m %>%
+  addCircles(data = train, lng = ~lon, lat = ~lat, radius = 100, color = "blue")
+
+# Agregar etiquetas de localidades
+m <- m %>%
+  addMarkers(data = train, lng = ~lon, lat = ~lat, label = ~localidad)
+
+# Mostrar el mapa
+m
 
 
 # -------------------- Estadísticas Descriptivas ---------------------------------#
@@ -867,9 +884,9 @@ Rango_precios_casas <- Precio_Casas %>%
 colnames(Rango_precios_casas) <- c("Rango de Precios", "Estrato","Habitaciones","Baños", "Area", "Observaciones","Part. %" )
 Rango_precios_casas
 
-Tabla_Rangos <- as.data.frame(Rango_precios_casas)
-Tabla_R_ <- "C:/Output R/Taller 2/Taller_2/document/Tabla_R.xlsx"
-write_xlsx(Tabla_Rangos, path = Tabla_R_)
+#Tabla_Rangos <- as.data.frame(Rango_precios_casas)
+#Tabla_R_ <- "C:/Output R/Taller 2/Taller_2/document/Tabla_R.xlsx"
+#write_xlsx(Tabla_Rangos, path = Tabla_R_)
 
 
 
@@ -1831,9 +1848,11 @@ X3_t <- as.matrix(test_casas_t[, c("Estrato", "Habitaciones", "Habitaciones2", "
 Elasticnet_model <- glmnet(X3, y, alpha = 0.5)  
 
 # Seleccionar el valor óptimo de lambda
-cv_elasticnet <- cv.glmnet(X3, y, alpha = 0.5)  
+cv_elasticnet <- cv.glmnet(X3, y, alpha = 0.5)
 lambda_optimo_en <- cv_elasticnet$lambda.min
 lambda_optimo_en
+dev.new()
+g_EN <- plot(Elasticnet_model, xvar = "lambda")
 
 # Ajustar el modelo Elastic Net con el valor óptimo de lambda
 Model4 <- glmnet(X3, y, alpha = 0.5, lambda = lambda_optimo_en)
@@ -1875,8 +1894,8 @@ Model5 <- lm(lPrecio ~ Estrato + Habitaciones + Habitaciones2 + Baños + M2_por_
                Dist_Parques + Dist_Transp_Publico + Dist_Establecimientos + Dist_C_Comerc + Dist_Centros_Educ + Dist_Restaurantes + Dist_Bancos, data = train_apart_t)
 Model5_stargazer <- stargazer(Model5, type="text", omit.stat=c("ser","f","adj.rsq"))
 Model5_stargazer <- as.data.frame(Model5_stargazer)
-train_apart_t$Pred_Precios <- predict(Model5, newdata = train_apart_t)
-test_apart_t$Pred_Precios <- predict(Model5, newdata = test_apart_t)
+train_apart_t$Pred_Precios <- exp(predict(Model5, newdata = train_apart_t))
+test_apart_t$Pred_Precios <- exp(predict(Model5, newdata = test_apart_t))
 #Regc <- "C:/Output R/Taller 2/Taller_2/document/Modc_stargazer.xlsx"
 #write_xlsx(Model5_stargazer, path = Regc )
 
@@ -1910,7 +1929,7 @@ g_ols <- ggplot() +
   geom_line(data = Precios_Prod_t, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
   geom_line(data = Pred_ols_t, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
   labs(
-    title = "Precios Promedio vs Estimación OLS",
+    title = "Estimación Estrato 4:Precios Promedio vs Estimación OLS",
     x = "Fecha",
     y = "Precio Promedio"
   ) +
@@ -1967,7 +1986,7 @@ g_rgd <- ggplot() +
   geom_line(data = Precios_Prod_t, aes(x = Fecha, y = Precio_Promedio, color = "Observado"), size = 1) +
   geom_line(data = Pred_rgd_t, aes(x = Fecha, y = Precio_Promedio, color = "Predicción"), size = 1) +
   labs(
-    title = "Precios Promedio vs Estimación Ridge",
+    title = "Estimación Estrato 4:Precios Promedio vs Estimación Ridge",
     x = "Fecha",
     y = "Precio Promedio"
   ) +
@@ -2202,12 +2221,10 @@ colnames(Pred_casas_ols) <- c("property_id", "Precio_Pred_ols")
 Pred_apart_ols <- data.frame(test_apart1$property_id, exp(predict(Model5, newdata = test_apart1)))
 colnames(Pred_apart_ols) <- c("property_id", "Precio_Pred_ols")
 Pred_ols_fm <- rbind(Pred_casas_ols, Pred_apart_ols)
-
-
-#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pronost_ols.csv"  
-#write.csv(x = Pred_ols_fm,
-#file = paste0(tabla_pronost, 'Pronost_ols.csv'),
-#row.names = FALSE)
+tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_ols1.csv"  
+write.csv(x = Pred_ols_fm,
+          file = paste0(tabla_pronost, 'Pred_ols1.csv'),
+          row.names = FALSE)
 
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA RIDGE-----------------------------# 
@@ -2259,10 +2276,10 @@ colnames(Pred_casas_bst4) <- c("property_id", "Precio_Pred_bst")
 Pred_apart_bst4 <- data.frame(test_apart1$property_id, exp(predict(tree_boosted_a, newdata=test_apart1)))
 colnames(Pred_apart_bst4) <- c("property_id", "Precio_Pred_bst")
 Pred_bst_fm4 <- rbind(Pred_casas_bst4, Pred_apart_bst4)
-#tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_bst.csv"  
-#write.csv(x = Pred_bst_fm4,
-# file = paste0(tabla_pronost, 'Pred_bst.csv'),
-# row.names = FALSE)
+tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_bst.csv"  
+write.csv(x = Pred_bst_fm4,
+file = paste0(tabla_pronost, 'Pred_bst.csv'),
+row.names = FALSE)
 
 # ------------------------------ERRORES DENTRO DE MUESTRA MSE----------------------------------------# 
 # -------------------------------------------------------------------------------------------------- #
@@ -2378,6 +2395,7 @@ Mod_1.3_stargazer <- as.data.frame(Mod_1.3_stargazer)
 #Regc2 <- "C:/Output R/Taller 2/Taller_2/document/Mod_1.3_stargazer.xlsx"
 #write_xlsx(Mod_1.3_stargazer, path = Regc2)
 
+train_casas_E4$Pred_Precios <- exp(predict(Mod_1.3, newdata = train_casas_E4))
 
 
 ##---------------------------------------Apartamentos ----------------------------------------##
@@ -2451,12 +2469,12 @@ Mod_2.3_stargazer <- stargazer(Mod_2.3, type = "text", omit.stat = c("ser", "f",
 Mod_2.3_stargazer <- as.data.frame(Mod_2.3_stargazer)
 #Rega2 <- "C:/Output R/Taller 2/Taller_2/document/Mod_2.3_stargazer.xlsx"
 #write_xlsx(Mod_2.3_stargazer, path = Rega2)
-
+train_apart_E4$Pred_Precios <- exp(predict(Mod_2.3, newdata = train_apart_E4))
 
 # ------------------------------------Precios Observados------------------------------ #
-Precio_casa_4 <- data.frame(test_cE4$property_id,test_cE4$Fecha, test_cE4$Precio)
+Precio_casa_4 <- data.frame(train_casas_E4$property_id,train_casas_E4$Fecha, train_casas_E4$Precio)
 colnames(Precio_casa_4) <- c("property_id", "Fecha", "Precio")
-Precio_apart_4 <- data.frame(test_aE4$property_id,test_aE4$Fecha, test_aE4$Precio)
+Precio_apart_4 <- data.frame(train_apart_E4$property_id,train_apart_E4$Fecha, train_apart_E4$Precio)
 colnames(Precio_apart_4) <- c("property_id", "Fecha","Precio")
 Precios_4 <- rbind(Precio_casa_4, Precio_apart_4)
 
@@ -2466,10 +2484,10 @@ Precios_Prod_4$Tipo <- "Observado"
 
 
 # ------------------------------------Precios Predicciones OLS-------------------------- #
-Pred_casa_ols_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_ols))
-colnames(Pred_casa_ols_4) <- c("property_id", "Fecha", "Precio_Pred_OLS")
-Pred_apart_ols_4<- data.frame(test_aE4$property_id,test_aE4$Fecha, exp(test_aE4$Predict_ols))
-colnames(Pred_apart_ols_4) <- c("property_id", "Fecha", "Precio_Pred_OLS")
+Pred_casa_ols_4 <- data.frame(train_casas_E4$property_id, train_casas_E4$Fecha, train_casas_E4$Pred_Precios)
+colnames(Pred_casa_ols_4) <- c("property_id", "Fecha", "Precio")
+Pred_apart_ols_4<- data.frame(train_apart_E4$property_id,train_apart_E4$Fecha, train_apart_E4$Pred_Precios)
+colnames(Pred_apart_ols_4) <- c("property_id", "Fecha", "Precio")
 Pred_ols_4 <- rbind(Pred_casa_ols_4, Pred_apart_ols_4)
 
 Precios_Prod_ols <- aggregate(Pred_ols_4$Precio, by = list(Pred_ols_4$Fecha), FUN = mean)
@@ -2491,7 +2509,8 @@ g_ols <- ggplot() +
     plot.title = element_text(hjust = 0.5),
     axis.line = element_line(color = "gray"),
     panel.background = element_rect(fill = "transparent", color = NA),
-    panel.grid = element_line(color = "gray")
+    panel.grid = element_line(color = "gray"),
+    legend.position = "bottom"
   )
 g_ols
 
@@ -2544,7 +2563,7 @@ Ridge_c <- fit(ridge_final_c, data = train_casas_E4)
 test_cE4$Predict_rgd <- predict(Ridge_c, new_data = test_cE4)
 test_cE4$Predict_rgd <- unlist(test_cE4$Predict_rgd)
 test_cE4$Predict_rgd <- as.numeric(test_cE4$Predict_rgd)
-
+train_casas_E4$Predict_rgd <- exp(predict(Ridge_c , new_data = train_casas_E4))
 
 # ---------------------------------------APARTAMENTOS----------------------------------------- #
 train_aE4_fold <- vfold_cv(train_aE4, v = 5)
@@ -2594,6 +2613,7 @@ Ridge_a <- fit(ridge_final, data = train_apart_E4)
 test_aE4$Predict_rgd<- predict(Ridge_a, new_data = test_aE4)
 test_aE4$Predict_rgd <- unlist(test_aE4$Predict_rgd)
 test_aE4$Predict_rgd <- as.numeric(test_aE4$Predict_rgd)
+train_apart_E4$Predict_rgd <- exp(predict(Ridge_a, new_data = train_apart_E4))
 
 #--------------------------------------------------------------------------------------------------------
 Ridge_c_ <- fit(ridge_final, data = train_apart1)
@@ -2603,9 +2623,9 @@ idge_a_ <- fit(ridge_final, data = train_apart1)
 
 
 # ------------------------------------Precios Predicciones RIDGE-------------------------- #
-Pred_casa_rgd_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_rgd))
+Pred_casa_rgd_4 <- data.frame(train_casas_E4$property_id, train_casas_E4$Fecha, train_casas_E4$Predict_rgd)
 colnames(Pred_casa_rgd_4) <- c("property_id", "Fecha", "Precio_Pred_Ridge")
-Pred_apart_rgd_4<- data.frame(test_aE4$property_id, test_aE4$Fecha, exp(test_aE4$Predict_rgd))
+Pred_apart_rgd_4<- data.frame(train_apart_E4$property_id, train_apart_E4$Fecha, train_apart_E4$Predict_rgd)
 colnames(Pred_apart_rgd_4) <- c("property_id", "Fecha", "Precio_Pred_Ridge")
 Pred_rgd_4 <- rbind(Pred_casa_rgd_4, Pred_apart_rgd_4)
 
@@ -2628,7 +2648,8 @@ g_rgd <- ggplot() +
     plot.title = element_text(hjust = 0.5),
     axis.line = element_line(color = "gray"),
     panel.background = element_rect(fill = "transparent", color = NA),
-    panel.grid = element_line(color = "gray")
+    panel.grid = element_line(color = "gray"),
+    legend.position = "bottom"
   )
 g_rgd
 
@@ -2667,6 +2688,9 @@ Lasso_c <- fit(lasso_final_c, data = train_casas_E4)
 test_cE4$Predict_ls<- predict(Lasso_c, new_data = test_cE4)
 test_cE4$Predict_ls <- unlist(test_cE4$Predict_ls)
 test_cE4$Predict_ls <- as.numeric(test_cE4$Predict_ls)
+train_casas_E4$Predict_ls <- exp(predict(Lasso_c, new_data = train_casas_E4))
+train_casas_E4$Predict_ls <- unlist(train_casas_E4$Predict_ls)
+train_casas_E4$Predict_ls <- as.numeric(train_casas_E4$Predict_ls)
 
 # ---------------------------------------APARTAMENTOS----------------------------------------- #
 
@@ -2701,13 +2725,15 @@ Lasso_a <- fit(lasso_final_a, data = train_apart_E4)
 test_aE4$Predict_ls<- predict(Lasso_a, new_data = test_aE4)
 test_aE4$Predict_ls <- unlist(test_aE4$Predict_ls)
 test_aE4$Predict_ls <- as.numeric(test_aE4$Predict_ls)
-
+train_apart_E4$Predict_ls <- exp(predict(Lasso_a, new_data = train_apart_E4))
+train_apart_E4$Predict_ls <- unlist(train_apart_E4$Predict_ls)
+train_apart_E4$Predict_ls <- as.numeric(train_apart_E4$Predict_ls)
 
 # ------------------------------------Precios Predicciones Lasso-------------------------- #
-Pred_casa_ls_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_ls))
-colnames(Pred_casa_ls_4) <- c("property_id", "Fecha", "Precio_Pred_Lasso")
-Pred_apart_ls_4<- data.frame(test_aE4$property_id, test_aE4$Fecha, exp(test_aE4$Predict_ls))
-colnames(Pred_apart_ls_4) <- c("property_id", "Fecha", "Precio_Pred_Lasso")
+Pred_casa_ls_4 <- data.frame(train_casas_E4$property_id, train_casas_E4$Fecha, train_casas_E4$Predict_ls)
+colnames(Pred_casa_ls_4) <- c("property_id", "Fecha", "Precio")
+Pred_apart_ls_4<- data.frame(train_apart_E4$property_id, train_apart_E4$Fecha, train_apart_E4$Predict_ls)
+colnames(Pred_apart_ls_4) <- c("property_id", "Fecha", "Precio")
 Pred_ls_4 <- rbind(Pred_casa_ls_4, Pred_apart_ls_4)
 
 Precios_Prod_ls <- aggregate(Pred_ls_4$Precio, by = list(Pred_ls_4$Fecha), FUN = mean)
@@ -2729,7 +2755,8 @@ g_ls <- ggplot() +
     plot.title = element_text(hjust = 0.5),
     axis.line = element_line(color = "gray"),
     panel.background = element_rect(fill = "transparent", color = NA),
-    panel.grid = element_line(color = "gray")
+    panel.grid = element_line(color = "gray"),
+    legend.position = "bottom"
   )
 g_ls
 
@@ -2768,6 +2795,10 @@ elasNet_c <- fit(elasNet_final_c, data = train_casas_E4)
 test_cE4$Predict_en <- predict(elasNet_c, new_data = test_cE4)
 test_cE4$Predict_en <- unlist(test_cE4$Predict_en)
 test_cE4$Predict_en <- as.numeric(test_cE4$Predict_en)
+train_casas_E4$Predict_en <- exp(predict(elasNet_c, new_data = train_casas_E4))
+train_casas_E4$Predict_en <- unlist(train_casas_E4$Predict_en)
+train_casas_E4$Predict_en <- as.numeric(train_casas_E4$Predict_en)
+
 
 # ---------------------------------------APARTAMENTOS----------------------------------------- #
 
@@ -2802,12 +2833,14 @@ elasNet_a <- fit(elasNet_final, data = train_apart_E4)
 test_aE4$Predict_en<- predict(elasNet_a, new_data = test_aE4)
 test_aE4$Predict_en <- unlist(test_aE4$Predict_en)
 test_aE4$Predict_en <- as.numeric(test_aE4$Predict_en)
-
+train_apart_E4$Predict_en <- exp(predict(elasNet_a, new_data = train_apart_E4))
+train_apart_E4$Predict_en <- unlist(train_apart_E4$Predict_en)
+train_apart_E4$Predict_en <- as.numeric(train_apart_E4$Predict_en)
 
 # ------------------------------------Precios Predicciones Elastic Net-------------------------- #
-Pred_casa_en_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_en))
+Pred_casa_en_4 <- data.frame(train_casas_E4$property_id, train_casas_E4$Fecha, train_casas_E4$Predict_en)
 colnames(Pred_casa_en_4) <- c("property_id", "Fecha", "Precio_Pred_Elastic_Net")
-Pred_apart_en_4<- data.frame(test_aE4$property_id, test_aE4$Fecha, exp(test_aE4$Predict_en))
+Pred_apart_en_4<- data.frame(train_apart_E4$property_id, train_apart_E4$Fecha, train_apart_E4$Predict_en)
 colnames(Pred_apart_en_4) <- c("property_id", "Fecha", "Precio_Pred_Elastic_Net")
 Pred_en_4 <- rbind(Pred_casa_en_4, Pred_apart_en_4)
 
@@ -2830,18 +2863,24 @@ g_en <- ggplot() +
     plot.title = element_text(hjust = 0.5),
     axis.line = element_line(color = "gray"),
     panel.background = element_rect(fill = "transparent", color = NA),
-    panel.grid = element_line(color = "gray")
+    panel.grid = element_line(color = "gray"),
+    legend.position = "bottom"
   )
 g_en
 
 
 # ------------------------------PRONOSTICOS FUERA DE MUESTRA OLS-------------------------------# 
 
-Pred_casas_ols4 <- data.frame(test_casas1$property_id, exp(predict(Reg1.3, new_data = test_casas1)))
-colnames(Pred_casas_ols4) <- c("property_id", "Precio_Pred_ols1")
-Pred_apart_ols4 <- data.frame(test_apart1$property_id, exp(predict(Reg2.3, new_data = test_apart1)))
-colnames(Pred_apart_ols4) <- c("property_id", "Precio_Pred_ols1")
+Pred_casas_ols4 <- data.frame(test_casas1$property_id, test_casas1$Fecha, exp(predict(Reg1.3, new_data = test_casas1)))
+colnames(Pred_casas_ols4) <- c("property_id", "Fecha", "Precio")
+Pred_apart_ols4 <- data.frame(test_apart1$property_id, test_apart1$Fecha, exp(predict(Reg2.3, new_data = test_apart1)))
+colnames(Pred_apart_ols4) <- c("property_id","Fecha", "Precio")
 Pred_ols_fm4 <- rbind(Pred_casas_ols4, Pred_apart_ols4)
+
+Pred_ols_fm4 <- aggregate(Pred_ols_fm4$Precio, by = list(Pred_ols_fm4$Fecha), FUN = mean)
+colnames(Pred_ols_fm4) <- c("Fecha", "Precio")
+Pred_ols_fm4$Tipo <- "Predicción"
+
 #tabla_pronost <- "C:/Output R/Taller 2/Taller_2/stores/Predicciones/Pred_ols1.csv"  
 #write.csv(x = Pred_ols_fm4,
 #file = paste0(tabla_pronost, 'Pred_ols1.csv'),
@@ -2906,8 +2945,8 @@ tree_boosted_a <- train(
 )
 
 tree_boosted_a
-
 test_aE4$Predict_bst<-predict(tree_boosted_a,newdata=test_aE4)
+train_apart_E4$Predict_bst<-predict(tree_boosted_a,newdata = train_apart_E4)
 
 # ----------------------------------------------CASAS ----------------------------------------- #
 
@@ -2926,10 +2965,11 @@ tree_boosted_c <- train(
 tree_boosted_c
 
 test_cE4$Predict_bst<-predict(tree_boosted_c,newdata=test_cE4)
+train_casas_E4$Predict_bst<-predict(tree_boosted_a,newdata = train_casas_E4)
 
-Pred_casa_bst_4 <- data.frame(test_cE4$property_id, test_cE4$Fecha, exp(test_cE4$Predict_bst))
+Pred_casa_bst_4 <- data.frame(train_casas_E4$property_id, train_casas_E4$Fecha, exp(train_casas_E4$Predict_bst))
 colnames(Pred_casa_bst_4) <- c("property_id", "Fecha", "Precio")
-Pred_apart_bst_4<- data.frame(test_aE4$property_id, test_aE4$Fecha, exp(test_aE4$Predict_bst))
+Pred_apart_bst_4<- data.frame(train_apart_E4$property_id, train_apart_E4$Fecha, exp(train_apart_E4$Predict_bst))
 colnames(Pred_apart_bst_4) <- c("property_id", "Fecha", "Precio")
 Pred_bst_4 <- rbind(Pred_casa_bst_4, Pred_apart_bst_4)
 
@@ -2952,12 +2992,13 @@ g_bst <- ggplot() +
     plot.title = element_text(hjust = 0.5),
     axis.line = element_line(color = "gray"),
     panel.background = element_rect(fill = "transparent", color = NA),
-    panel.grid = element_line(color = "gray")
+    panel.grid = element_line(color = "gray"),
+    legend.position = "bottom"
   )
 g_bst
 
 
-test_cE4$Predict_bst<-predict(tree_boosted_c,newdata=test_cE4)
+
 
 ##----------------------------------------------------- Predict Boosting Base Completa---------------------------------------------------
 # APARTAMENTOS
