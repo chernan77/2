@@ -15,4 +15,4 @@ Esta carpeta contiene el documento en word y en pdf con las explicaciones y resu
 Esta carpeta contiene las predicciones realizadas segun las metodologias desarrolladas. 
 
 ### views:
-Esta carpeta contiene las tablas y los gráficos incluidos en el documento. 
+Esta carpeta el gráfico o mapa incluido en el documento. 
